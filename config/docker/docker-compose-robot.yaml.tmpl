@@ -22,6 +22,7 @@
             - './share/pr2_navigation_global/move_base.xml:/opt/ros/indigo/share/pr2_navigation_global/move_base.xml'
             - './share/pr2_2dnav/launch/pr2_2dnav.launch:/opt/ros/indigo/share/pr2_2dnav/launch/pr2_2dnav.launch'
             - './cache:/root/.diarc'
+            - './config/gradle/gradle.properties:/root/gradle.properties'
         ulimits:
             rtprio: 99
         image: hrilabtufts/unity_space_station

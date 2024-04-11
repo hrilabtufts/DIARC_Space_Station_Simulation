@@ -42,7 +42,9 @@ printf "\n${GREEN}Starting DIARC${NC} in ${WAIT} seconds...\n"
 sleep ${WAIT}
 
 printf "\n${GREEN}Starting DIARC${NC}\n"
-
+rm -rf /root/.gradle
+mkdir -p /root/.gradle
+cp /root/gradle.properties /root/.gradle/gradle.properties
 echo "---------LAUNCHING CONFIG-----------"
 echo ${DIARC_CONFIG}
-./gradlew launch -Pmain=${DIARC_CONFIG} --args="-unity ${UNITY_IP}" -ProsPackage=movebase
+./gradlew launch -Pmain=${DIARC_CONFIG} --args="-unity ${UNITY_IP}"

@@ -1,0 +1,38 @@
+    ROBOTNAME:
+        privileged: true
+        ports:
+            - 'PORT:PORT'
+            - '11311:11311'
+            - '8001:8001'
+        environment:
+            - QT_X11_NO_MITSHM=1
+            - XAUTHORITY=/tmp/.docker.xauth
+            - NVIDIA_VISIBLE_DEVICES=all
+            - NVIDIA_DRIVER_CAPABILITIES=all
+            - DISPLAY=ENVDISPLAY
+        volumes:
+            - './.env:/code/scripts/.env'
+            - './.env:/code/diarc/.env'
+            - '/tmp/.X11-unix:/tmp/.X11-unix:rw'
+            - '/etc/localtime:/etc/localtime:ro'
+            - '/tmp/.docker.xauth:/tmp/.docker.xauth'
+            - './docker_scripts/rebuild_code.sh:/code/scripts/start_code.sh'
+            - ROS_TMP:/catkin_ws/src/unity_ros/launch/startup_pr2_docker.launch
+            - DIARC_SRC:/code/diarc/
+            - './logs/TIMESTAMP-PORT-diarc/:/code/diarc/logs/'
+            - './logs/TIMESTAMP-PORT-ros/:/root/.ros/log/'
+            - './share/pr2_navigation_global/move_base.xml:/opt/ros/indigo/share/pr2_navigation_global/move_base.xml'
+            - './share/pr2_2dnav/launch/pr2_2dnav.launch:/opt/ros/indigo/share/pr2_2dnav/launch/pr2_2dnav.launch'
+            - './cache:/root/.diarc'
+        ulimits:
+            rtprio: 99
+        image: hrilabtufts/unity_space_station
+        command: /bin/bash start_code.sh
+        runtime: nvidia
+        deploy:
+            resources:
+                reservations:
+                    devices:
+                        - driver: nvidia
+                          count: 1
+                          capabilities: [gpu]

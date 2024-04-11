@@ -1,0 +1,16 @@
+    kaldi-en:
+        image: alphacep/kaldi-en:latest
+        ports:
+            - 2700:2700
+        volumes:
+            - ./py/asr_server.py:/opt/vosk-server/websocket/./asr_server.py
+        restart: always
+    opentts:
+        image: synesthesiam/opentts:en
+        ports:
+            - 5500:5500
+        volumes:
+            - ./cache:/cache
+            - ./tmp:/tmp
+        command: --cache /cache
+        restart: always

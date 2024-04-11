@@ -179,7 +179,7 @@ RUN ssh-keyscan -p 22222 hrilab.tufts.edu >> /root/.ssh/known_hosts
 # clone DIARC
 RUN mkdir -p ${CODE}
 WORKDIR ${CODE}
-RUN git clone -b space_station_release --single-branch ssh://git@hrilab.tufts.edu:22222/ade/ade.git ${CODE}/diarc
+RUN git clone -b tr_master --single-branch ssh://git@hrilab.tufts.edu:22222/ade/ade.git ${CODE}/diarc
 # Delete private key
 RUN rm /root/.ssh/id_rsa
 

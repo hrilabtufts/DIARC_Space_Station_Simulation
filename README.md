@@ -7,6 +7,8 @@ This project contains the DIARC space station simulation comprised of two execut
 The server build connects to the virtual PR2 via RosBridge and DIARC. 
 It allows one or more client to connect to it and interact with the robot.
 
+This requires a `server-settings.json`
+
 * [Space Station Server v3.5.91 - Latest]()
 
 ### Unity Client
@@ -37,6 +39,7 @@ Commands:
 ### Configuration
 
 A `.env` file defines all of the environment variables needed to launch the space station simulation on your machine or network.
+It must be created in this project directory and available to all scripts.
 
 Example, also found in default.env:
 
@@ -52,23 +55,44 @@ If your system requires root to run this command it should be changed to `sudo d
 If you have installed the `docker-compose` script instead of the plugin, it should be changed to `docker-compose` or `sudo docker-compose` if your system requires root to launch containers.
 
 `UNITY_IP` is the IP address of the machine the Unity server build is running on.
-If this is a separate machine it should have the port 11
+If this is a separate machine from the one running these docker containers it should have the port 1755 is open for network connections.
+
+`DIARC_CONFIG` is the configuration file to launch on startup.
+If you are developing your own DIARC configuration, change this value to point to your new class.
+
+`WAIT` is the time, in seconds, between starting up ROS and starting up DIARC during which the Unity server needs to be started.
 
 ### Script Commands
+
+#### build
+
+The docker image must be built before the container with DIARC can be launched.
+
+```bash
+bash usd.sh build
+```
+
+In the case that your docker installation requires root to run:
+
+```bash
+sudo bash usd.sh build
+```
 
 #### run
 
 Run DIARC and ROS on localhost.
 This will start a single container with the diarc configuration.
-Robot will connect to `127.0.0.1:1755` on the Unity server and publish a Rosbridge websocket server on port `9090`.
+Robot will connect to `127.0.0.1:8000` on the Unity server and publish a Rosbridge websocket server on port `9090`.
+
+If your docker installation requires root to run, do not run this command with `sudo`, instead update your `.env` file's `BIN` variable to be `sudo docker compose` or `sudo docker-compose` as needed.
 
 ```bash
-usd run
+bash usd.sh run
 ```
 This will start and launch associated ROS and DIARC.
 
 ```bash
-usd run 127.0.0.1 true
+bash usd.sh run
 ```
 
 #### dev
@@ -77,5 +101,11 @@ Run DIARC in debug mode and use a development repository which can be edited loc
 This will rebuild the `unity` component in `../local_ade_repo` and launch DIARC with debug port `5005` expecting a connection from IntelliJ to start DIARC.
 
 ```bash
-usd dev ../diarc
+bash usd.sh dev ../diarc
 ```
+
+
+### Configuring Unity Space Station Server
+
+
+### Configuring Unity Space Station Client

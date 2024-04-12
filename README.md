@@ -109,6 +109,12 @@ bash usd.sh dev ../diarc
 ```
 
 
+### DIARC Space Station Simulation Settings Generator
+
+To generate settings files for the server and client, you can use the following web app or read below for more information.
+
+[https://hrilabtufts.github.io/DIARC_Space_Station_Simulation_Settings_Generator/](https://hrilabtufts.github.io/DIARC_Space_Station_Simulation_Settings_Generator/)
+
 <a name="server-config"></a>
 ### Configuring Unity Space Station Server
 

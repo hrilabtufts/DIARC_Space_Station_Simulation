@@ -1,10 +1,5 @@
 #!/bin/bash
 
-if [ ! -f id_rsa ]; then
-    echo "Please add your Gitlab ssh key to this directory as id_rsa or docker build will fail."
-    exit 1
-fi 
-
 if [ ! -f .env ]; then
     echo "Please create a .env file to configure this repo. See default.env for an example."
     exit 2

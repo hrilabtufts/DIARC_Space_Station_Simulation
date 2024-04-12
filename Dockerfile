@@ -166,22 +166,10 @@ RUN source /opt/ros/indigo/setup.bash && catkin_make
 # Remove catkin_tools
 RUN rm -rf ~/.catkin_tools
 
-# Make ssh dir
-RUN mkdir -p /root/.ssh/
-# Remember, this is copying over my private key: delete it later.
-# Copy over private key, and set permissions
-COPY id_rsa /root/.ssh/id_rsa
-# Create known_hosts
-RUN touch /root/.ssh/known_hosts
-
-# Add DIARC git repo key
-RUN ssh-keyscan -p 22222 hrilab.tufts.edu >> /root/.ssh/known_hosts
 # clone DIARC
 RUN mkdir -p ${CODE}
 WORKDIR ${CODE}
-RUN git clone -b tr_master --single-branch ssh://git@hrilab.tufts.edu:22222/ade/ade.git ${CODE}/diarc
-# Delete private key
-RUN rm /root/.ssh/id_rsa
+RUN git clone -b main --single-branch https://github.com/mscheutz/diarc.git ${CODE}/diarc
 
 # Clone ROSJAVA
 RUN git clone https://github.com/evankrause/rosjava_core.git ${CODE}/rosjava_core

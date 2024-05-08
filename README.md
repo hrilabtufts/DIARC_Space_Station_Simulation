@@ -5,8 +5,8 @@ This repository contains the DIARC space station simulation comprised of two exe
 ## Quickstart
 
 1. Clone this repo
-1. Download the [Unity space station server](https://github.com/hrilabtufts/DIARC_Space_Station_Simulation/releases/download/repo_release/Space_Station_SMM_Server_3.5.91.zip)
-1. Download the [Unity space station client](https://github.com/hrilabtufts/DIARC_Space_Station_Simulation/releases/download/repo_release/Space_Station_SMM_Client_5.5.50.zip)
+1. Download the [Unity space station server](https://github.com/hrilabtufts/DIARC_Space_Station_Simulation/releases/download/repo_release/Space_Station_SMM_Server_3.5.91.zip) (Windows)
+1. Download the [Unity space station client](https://github.com/hrilabtufts/DIARC_Space_Station_Simulation/releases/download/repo_release/Space_Station_SMM_Client_5.5.50.zip) (Windows)
 1. Create your [.env configuration](#script-config)
 1. Create your [Unity configuration files](#unity-config)
 1. Build the docker image with `bash usd.sh build`

@@ -34,4 +34,4 @@ printf "\n${GREEN}Starting DIARC${NC}\n"
 
 echo "---------LAUNCHING CONFIG-----------"
 echo ${DIARC_CONFIG}
-./gradlew launch -Pmain=${DIARC_CONFIG} --args="-unity ${UNITY_IP}"
+./gradlew launch -Pmain=${DIARC_CONFIG} --args="-unity ${UNITY_IP} -llm ${LLM}"

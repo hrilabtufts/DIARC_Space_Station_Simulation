@@ -47,4 +47,4 @@ mkdir -p /root/.gradle
 cp /root/gradle.properties /root/.gradle/gradle.properties
 echo "---------LAUNCHING CONFIG-----------"
 echo ${DIARC_CONFIG}
-./gradlew launch -Pmain=${DIARC_CONFIG} --args="-unity ${UNITY_IP}"
+./gradlew launch -Pmain=${DIARC_CONFIG} --args="-unity ${UNITY_IP} -llm ${LLM}"

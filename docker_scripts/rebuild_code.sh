@@ -28,8 +28,7 @@ echo $ROS_PACKAGE_PATH
 export ROBOT=sim
 export ROS_IP=$(hostname -I | xargs)
 
-# start DIARC
-cd $DIARC
+
 
 roslaunch unity_ros startup_pr2_docker.launch &
 
@@ -37,10 +36,17 @@ if [[ "${WAIT}" == "" ]]; then
   WAIT=40
 fi
 
+#printf "\n${GREEN}Starting Unity simulation server${NC} in ${WAIT} seconds...\n"
+#d /server
+#./Space_Station_SMM_Server.x86_64
+
+
 printf "\n${GREEN}Starting DIARC${NC} in ${WAIT} seconds...\n"
 
 sleep ${WAIT}
 
+# start DIARC
+cd $DIARC
 printf "\n${GREEN}Starting DIARC${NC}\n"
 rm -rf /root/.gradle
 mkdir -p /root/.gradle

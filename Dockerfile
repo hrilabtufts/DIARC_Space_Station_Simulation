@@ -142,16 +142,19 @@ RUN mkdir -p $ROS_WORKSPACE
 RUN mkdir -p $CODE 
 RUN mkdir -p $SCRIPTS
 
-# We're going to need this for java 8
+# Setup Java ppa
 RUN add-apt-repository ppa:openjdk-r/ppa -y
 RUN apt-get update
 
 # Get java 17
 RUN apt-get install -y openjdk-17-jdk ant gcc g++
 
-# set java 17 to default
+# Set java 17 to default
 RUN update-alternatives --set javac /usr/lib/jvm/java-17-openjdk-amd64/bin/javac 
 RUN update-alternatives --set java /usr/lib/jvm/java-17-openjdk-amd64/bin/java
+
+# Install Unity dependencies
+RUN apt-get install -y mesa-utils libgl1-mesa-glx
 
 # Clone unity_ros package
 RUN mkdir -p $ROS_WORKSPACE/src

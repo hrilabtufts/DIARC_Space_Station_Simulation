@@ -30,7 +30,7 @@ ROS_TMPL_FILE="startup_pr2_docker.launch.tmpl"
 PORT=9090
 ROBOTS=1
 
-if [[ "${3}" != "" ]] && [[ "${3}" != "false" ]]; then
+if [[ "${2}" != "" ]] && [[ "${2}" != "false" ]]; then
   echo "Starting with GUIs enabled..."
   HEADLESS="false"
   DISPLAY_RVIZ="True"

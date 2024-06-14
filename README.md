@@ -1,6 +1,18 @@
 # DIARC Unity Space Station Simulation
 
-This project contains the DIARC space station simulation comprised of two executables and a script for launching the docker containers and services required to simulate a PR2 running DIARC.
+This repository contains the DIARC space station simulation comprised of two executables and a script for launching the docker containers and services required to simulate a PR2 running DIARC.
+
+## Quickstart
+
+1. Clone this repo
+1. Download the [Unity space station server](https://github.com/hrilabtufts/DIARC_Space_Station_Simulation/releases/download/repo_release/Space_Station_SMM_Server_3.5.91.zip)
+1. Download the [Unity space station client](https://github.com/hrilabtufts/DIARC_Space_Station_Simulation/releases/download/repo_release/Space_Station_SMM_Client_5.5.50.zip)
+1. Create your [.env configuration](#script-config)
+1. Create your [Unity configuration files](#unity-config)
+1. Build the docker image with `bash usd.sh build`
+1. Start the docker container with `bash usd.sh run`
+1. When ROS has started, launch the Unity server
+1. When the Unity server and DIARC have completed launching, start the client
 
 ### Unity Server
 
@@ -27,7 +39,7 @@ See [Configuring Unity Space Station Client](#client-config) for more informatio
 * [docker](https://docs.docker.com/engine/install/ubuntu/)
 * [docker compose](https://docs.docker.com/compose/install/linux/)
 
-
+<a name="script-config"></a>
 ### Script Usage
 
 ```
@@ -108,7 +120,7 @@ This will rebuild the `unity` component in `../local_ade_repo` and launch DIARC 
 bash usd.sh dev ../diarc
 ```
 
-
+<a name="unity-config"></a>
 ### DIARC Space Station Simulation Settings Generator
 
 To generate settings files for the server and client, you can use the following web app or read below for more information.

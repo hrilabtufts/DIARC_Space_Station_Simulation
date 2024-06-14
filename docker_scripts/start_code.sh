@@ -33,5 +33,8 @@ sleep ${WAIT}
 printf "\n${GREEN}Starting DIARC${NC}\n"
 
 echo "---------LAUNCHING CONFIG-----------"
+rm -rf /root/.gradle
+mkdir -p /root/.gradle
+cp /root/gradle.properties /root/.gradle/gradle.properties
 echo ${DIARC_CONFIG}
-./gradlew launch -Pmain=${DIARC_CONFIG} --args="-unity ${UNITY_IP}"
+./gradlew launch -Pmain=${DIARC_CONFIG} --args="-unity ${UNITY_IP} -llm ${LLM}"

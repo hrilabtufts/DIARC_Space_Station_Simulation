@@ -118,7 +118,7 @@ for (( r=1; r<=$ROBOTS; r++)); do
   echo "$robot" >> ${DOCKER_COMPOSE}
 
   echo "robot${r}:" >> ${TMPDISPLAY}
-  echo "  (remote) Unity Server        : ${2}:1755" >> ${TMPDISPLAY}
+  echo "  (remote) Unity Server        : ${UNITY_IP}:1755" >> ${TMPDISPLAY}
   echo "  (local)  Rosbridge Port      : ${PORT}" >> ${TMPDISPLAY}
 done
 

@@ -5,6 +5,9 @@
         volumes:
             - ./py/asr_server.py:/opt/vosk-server/websocket/./asr_server.py
         restart: always
+        networks:
+            diarc_space_station:
+                ipv4_address: NETWORK_PREFIX.0.2
     opentts:
         image: synesthesiam/opentts:en
         ports:
@@ -14,3 +17,6 @@
             - ./tmp:/tmp
         command: --cache /cache
         restart: always
+        networks:
+            diarc_space_station:
+                ipv4_address: NETWORK_PREFIX.0.3

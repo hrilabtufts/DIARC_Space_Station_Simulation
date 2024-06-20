@@ -1,8 +1,7 @@
     ROBOTNAME:
         privileged: true
         ports:
-            - 'PORT:PORT'
-            - '11311:11311'
+            - 'PORT:9090'
         environment:
             - QT_X11_NO_MITSHM=1
             - XAUTHORITY=/tmp/.docker.xauth
@@ -23,6 +22,8 @@
             - './share/pr2_2dnav/launch/pr2_2dnav.launch:/opt/ros/indigo/share/pr2_2dnav/launch/pr2_2dnav.launch'
             - './cache:/root/.diarc'
             - './config/gradle/gradle.properties:/root/gradle.properties'
+            - 'TRADE_PROPERTIES:/root/trade.properties'
+            - './config/diarc/logback.xml:/root/logback.xml'
         ulimits:
             rtprio: 99
         image: hrilabtufts/unity_space_station
@@ -35,3 +36,6 @@
                         - driver: nvidia
                           count: 1
                           capabilities: [gpu]
+        networks:
+            diarc_space_station:
+                ipv4_address: ROBOT_IP

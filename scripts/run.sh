@@ -20,35 +20,36 @@ askContinue () {
   fi
 }
 
+DOCKER_COMPOSE="./docker-compose.yaml"
+TIMESTAMP=$(date '+%s')
+TMPDISPLAY=$(mktemp)
+TRADE_PROPERTIES="./config/diarc/trade.hub.properties"
 ROS_TMPL_FILE="startup_pr2_docker.launch.tmpl"
 PORT=9090
-ROBOTS=1
+ROBOT_START=4
+
+if [ -z $ROBOTS ]; then
+  ROBOTS=1
+fi
 
 if [[ "${2}" != "" ]]; then
   echo "Starting with GUIs enabled..."
   HEADLESS="false"
   DISPLAY_RVIZ="True"
   DISPLAY_GAZEBO="False" #always false for now
-  DISPLAY_DIALOGUE="-g"
-  DISPLAY_BELIEF="-beliefg"
-  DISPLAY_EDITOR="-editor"
-  robot=$(cat config/docker/docker-compose-robot.yaml.tmpl)
+  
 else
   echo "Starting headless..."
   HEADLESS="true"
   DISPLAY_RVIZ="False"
   DISPLAY_GAZEBO="False"
-  DISPLAY_DIALOGUE=""
-  DISPLAY_BELIEF=""
-  DISPLAY_EDITOR=""
-  robot=$(cat config/docker/docker-compose-robot-headless.yaml.tmpl)
 fi
 
+additional=$(< config/docker/docker-compose-additional-services.yaml.tmpl)
+additional=${additional//NETWORK_PREFIX/$NETWORK_PREFIX}
+
 mkdir -p logs
-
-TIMESTAMP=$(date '+%s')
-
-mkdir -p logs/
+mkdir -p cache
 
 if [[ "${HEADLESS}" == "false" ]]; then
   xhost +local:docker
@@ -76,20 +77,25 @@ if [[ "${HEADLESS}" == "false" ]]; then
   echo ""
 fi
 
-DOCKER_COMPOSE=docker-compose.yaml
-rm -f ${DOCKER_COMPOSE}
 
+rm -f ${DOCKER_COMPOSE}
 cat config/docker/docker-compose.yaml.tmpl >> ${DOCKER_COMPOSE}
+echo "${additional}" >> ${DOCKER_COMPOSE}
 
 echo "Starting DIARC with ROS in the following configurations: "
-
-TMPDISPLAY=$(mktemp)
 
 for (( r=1; r<=$ROBOTS; r++)); do
   mkdir -p logs/${TIMESTAMP}-${PORT}-ros/
   mkdir -p logs/${TIMESTAMP}-${PORT}-diarc/
 
+  if [[ "${HEADLESS}" == "true" ]]; then
+    robot=$(< config/docker/docker-compose-robot-headless.yaml.tmpl)
+  else 
+    robot=$(< config/docker/docker-compose-robot.yaml.tmpl)
+  fi
+
   ROS_TMP=$(mktemp)
+  ROBOT_IP="${NETWORK_PREFIX}.0.${ROBOT_START}"
 
   ROS_TMPL=$(cat config/ros/${ROS_TMPL_FILE})
   ROS_TMPL=${ROS_TMPL/DISPLAY_RVIZ/$DISPLAY_RVIZ}
@@ -98,10 +104,14 @@ for (( r=1; r<=$ROBOTS; r++)); do
   ROS_TMPL=${ROS_TMPL//ROBOTNUMBER/$r}
   echo "${ROS_TMPL/PORT/$PORT}" > ${ROS_TMP}
 
+  echo $ROBOT_IP
+
   robot=${robot//PORT/$PORT}
   robot=${robot//TIMESTAMP/$TIMESTAMP}
   robot=${robot/ROS_TMP/$ROS_TMP}
   robot=${robot/ROBOTNAME/robot$r}
+  robot=${robot//ROBOT_IP/$ROBOT_IP}
+  robot=${robot//TRADE_PROPERTIES/$TRADE_PROPERTIES}
 
   robot=${robot//ENVDISPLAY/$DISPLAY}
   echo "$robot" >> ${DOCKER_COMPOSE}
@@ -111,9 +121,14 @@ for (( r=1; r<=$ROBOTS; r++)); do
   echo "  (local)  Rosbridge Port : ${PORT}" >> ${TMPDISPLAY}
   
   PORT=$((PORT+1))
+  ROBOT_START=$((ROBOT_START+1))
+  TRADE_PROPERTIES="./config/diarc/trade.spoke.properties"
 done
 
-echo "$additional" >> ${DOCKER_COMPOSE}
+network=$(< config/docker/docker-compose-network.yaml.tmpl)
+network=${network//NETWORK_PREFIX/$NETWORK_PREFIX}
+
+echo "$network" >> ${DOCKER_COMPOSE}
 
 cat ${ROS_TMP}
 cat ${DOCKER_COMPOSE}

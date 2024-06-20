@@ -1,0 +1,7 @@
+networks:
+    diarc_space_station:
+        driver: bridge
+        ipam:
+            config:
+                - subnet: NETWORK_PREFIX.0.0/16
+                  gateway: NETWORK_PREFIX.0.1 

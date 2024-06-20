@@ -8,6 +8,11 @@ fi
 
 source .env
 
+if [ "${ROBOTS}" -gt 2 ]; then
+  echo "This script supports maximum 2 robots at this time"
+  exit 3
+fi
+
 askContinue () {
   echo "${1}"
   echo "Are you ready to continue? (yes/no)"

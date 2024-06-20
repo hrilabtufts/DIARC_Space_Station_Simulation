@@ -2,11 +2,16 @@
         privileged: true
         ports:
             - 'PORT:9090'
+        expose:
+            - '10001'
+        environment:
+            - DIARC_ENVIRONMENT=development
+            - DIARC_ROBOT=ROBOTNAME
         volumes:
             - './.env:/code/scripts/.env'
             - './.env:/code/diarc/.env'
             - '/etc/localtime:/etc/localtime:ro'
-            - './docker_scripts/rebuild_code.sh:/code/scripts/start_code.sh'
+            - './docker_scripts/start_code.sh:/code/scripts/start_code.sh'
             - ROS_TMP:/catkin_ws/src/unity_ros/launch/startup_pr2_docker.launch
             - DIARC_SRC:/code/diarc/
             - './logs/TIMESTAMP-PORT-diarc/:/code/diarc/logs/'

@@ -8,9 +8,18 @@ fi
 
 source .env
 
+if [ "${ROBOTS}" -gt 2 ]; then
+  echo "This script supports maximum 2 robots at this time"
+  exit 3
+fi
+
 if [[ "${1}" == "" ]] || [ ! -d "$(realpath ${1})" ]; then 
   echo "Please provide relative path to local DIARC repository."
   exit 2
+fi
+
+if [ ! -d "$(realpath ${2})" ]; then 
+  echo "Please provide relative path to local DIARC repository as third argument."
 fi
 
 
@@ -30,12 +39,12 @@ DOCKER_COMPOSE="./docker-compose.yaml"
 DIARC_SRC="$(realpath ${1})"
 TMPDISPLAY=$(mktemp)
 TIMESTAMP=$(date '+%s')
-TRADE_PROPERTIES="./config/diarc/trade.hub.properties"
+TRADE_PROPERTIES_TMPL=$(< "./config/diarc/trade.hub.properties")
 ROS_TMPL_FILE="startup_pr2_docker.launch.tmpl"
 PORT=9090
 ROBOT_START=4
 
-if [[ "${2}" != "" ]] && [[ "${2}" != "false" ]]; then
+if [[ "${3}" != "" ]] && [[ "${3}" != "false" ]]; then
   echo "Starting with GUIs enabled..."
   HEADLESS="false"
   DISPLAY_RVIZ="True"
@@ -101,7 +110,11 @@ for (( r=1; r<=$ROBOTS; r++)); do
   fi
 
   ROS_TMP=$(mktemp)
+  TRADE_PROPERTIES=$(mktemp)
   ROBOT_IP="${NETWORK_PREFIX}.0.${ROBOT_START}"
+
+  TRADE_PROPERTIES_TMPL=${TRADE_PROPERTIES_TMPL//NETWORK_PREFIX/$NETWORK_PREFIX}
+  echo "${TRADE_PROPERTIES_TMPL}" > ${TRADE_PROPERTIES}
 
   ROS_TMPL=$(< config/ros/${ROS_TMPL_FILE})
   ROS_TMPL=${ROS_TMPL//DISPLAY_RVIZ/$DISPLAY_RVIZ}
@@ -127,7 +140,10 @@ for (( r=1; r<=$ROBOTS; r++)); do
   echo "  (local)  Rosbridge Port      : ${PORT}" >> ${TMPDISPLAY}
   PORT=$((PORT+1))
   ROBOT_START=$((ROBOT_START+1))
-  TRADE_PROPERTIES="./config/diarc/trade.spoke.properties"
+  TRADE_PROPERTIES_TMPL=$(< "./config/diarc/trade.spoke.properties")
+  if [ ! -z "${2}" ]; then
+    DIARC_SRC="$(realpath ${2})"
+  fi
 done
 
 network=$(< config/docker/docker-compose-network.yaml.tmpl)

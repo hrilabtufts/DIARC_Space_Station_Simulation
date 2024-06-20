@@ -2,19 +2,23 @@
         privileged: true
         ports:
             - 'PORT:9090'
+        expose:
+            - '10001'
         environment:
             - QT_X11_NO_MITSHM=1
             - XAUTHORITY=/tmp/.docker.xauth
             - NVIDIA_VISIBLE_DEVICES=all
             - NVIDIA_DRIVER_CAPABILITIES=all
             - DISPLAY=ENVDISPLAY
+            - DIARC_ENVIRONMENT=development
+            - DIARC_ROBOT=ROBOTNAME
         volumes:
             - './.env:/code/scripts/.env'
             - './.env:/code/diarc/.env'
             - '/tmp/.X11-unix:/tmp/.X11-unix:rw'
             - '/etc/localtime:/etc/localtime:ro'
             - '/tmp/.docker.xauth:/tmp/.docker.xauth'
-            - './docker_scripts/rebuild_code.sh:/code/scripts/start_code.sh'
+            - './docker_scripts/start_code.sh:/code/scripts/start_code.sh'
             - ROS_TMP:/catkin_ws/src/unity_ros/launch/startup_pr2_docker.launch
             - DIARC_SRC:/code/diarc/
             - './logs/TIMESTAMP-PORT-diarc/:/code/diarc/logs/'

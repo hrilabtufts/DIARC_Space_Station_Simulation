@@ -15,7 +15,7 @@ if [[ "${1}" == "build" ]]; then
 elif [[ "${1}" == "run" ]]; then
 	bash ./scripts/run.sh
 elif [[ "${1}" == "dev" ]]; then
-	bash ./scripts/dev.sh "${2}" "${3}"
+	bash ./scripts/dev.sh "${2}" "${3}" "${4}"
 elif [[ "${1}" == "stop" ]]; then
 	bash ./scripts/stop.sh
 elif [[ "${1}" == "kill" ]]; then

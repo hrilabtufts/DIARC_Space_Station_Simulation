@@ -14,6 +14,8 @@
   <root level="info">
     <appender-ref ref="Console"/>
   </root>
-  <logger name="edu.tufts.hrilab.unity.UnityComponent" level="DEBUG"/>
-
+  <!--<logger name="edu.tufts.hrilab.unity.UnityComponent" level="DEBUG"/>
+  <logger name="edu.tufts.hrilab.tf.TFComponent" level="DEBUG"/>
+  <logger name="edu.tufts.hrilab.movebase.MoveBaseComponent" level="DEBUG"/>
+  <logger name="edu.tufts.hrilab.movebase.MoveBase" level="DEBUG"/>-->
 </configuration>

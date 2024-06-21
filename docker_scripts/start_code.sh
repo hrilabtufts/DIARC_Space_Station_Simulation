@@ -11,7 +11,7 @@ ROSJAVA="/code/rosjava_core"
 # source ROS
 source /opt/ros/indigo/setup.bash
 
-if [[ "${DIARC_ENVIRONMENT}" == "development" ]]; then
+if [[ "${DIARC_ENVIRONMENT}" == "development" ]] && [[ "${REBUILD}" != "false" ]]; then
   cd $ROSJAVA
   ./gradlew clean buildAndPublishDiarcRos
 

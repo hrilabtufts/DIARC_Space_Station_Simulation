@@ -28,6 +28,9 @@
     <!-- start the 2d navigation -->
     <include file = "$(find pr2_2dnav)/launch/pr2_2dnav.launch"/>
 
+    <node name="lidar"    pkg="spoof_sensing" type="lidar.py"/>
+    <node name="pubclock" pkg="spoof_sensing" type="pubclock.py" />
+
     <group if="$(arg use_rviz)">
         <include file = "$(find pr2_navigation_global)/rviz/rviz_move_base.launch" output="screen" />
     </group>

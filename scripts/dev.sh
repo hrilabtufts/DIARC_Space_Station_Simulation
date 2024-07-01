@@ -39,9 +39,12 @@ DOCKER_COMPOSE="./docker-compose.yaml"
 DIARC_SRC="$(realpath ${1})"
 TMPDISPLAY=$(mktemp)
 TIMESTAMP=$(date '+%s')
+TRADE_PROPERTIES_CONF="diarc.tradePropertiesFile=/root/trade.properties"
+TRADE_PROPERTIES_DEFAULT="diarc.tradePropertiesFile=src/main/resources/default/trade.properties.default"
 TRADE_PROPERTIES_TMPL=$(< "./config/diarc/trade.hub.properties")
 ROS_TMPL_FILE="startup_pr2_docker.launch.tmpl"
 PORT=9090
+UNITY_PORT=1755
 ROBOT_START=4
 
 if [[ "${3}" != "" ]] && [[ "${3}" != "false" ]]; then
@@ -116,6 +119,15 @@ for (( r=1; r<=$ROBOTS; r++)); do
   TRADE_PROPERTIES_TMPL=${TRADE_PROPERTIES_TMPL//NETWORK_PREFIX/$NETWORK_PREFIX}
   echo "${TRADE_PROPERTIES_TMPL}" > ${TRADE_PROPERTIES}
 
+  GRADLE_PROPERTIES=$(mktemp)
+  GRADLE_PROPERTIES_TMPL=$(< "./config/gradle/gradle.properties")
+  if [[ "${SMM}" == "true" ]]; then
+    GRADLE_PROPERTIES_TMPL=${GRADLE_PROPERTIES_TMPL//TRADE_PROPERTIES/$TRADE_PROPERTIES_CONF}
+  else 
+    GRADLE_PROPERTIES_TMPL=${GRADLE_PROPERTIES_TMPL//TRADE_PROPERTIES/$TRADE_PROPERTIES_DEFAULT}
+  fi
+  echo "${GRADLE_PROPERTIES_TMPL}" > ${GRADLE_PROPERTIES}
+
   ROS_TMPL=$(< config/ros/${ROS_TMPL_FILE})
   ROS_TMPL=${ROS_TMPL//DISPLAY_RVIZ/$DISPLAY_RVIZ}
   ROS_TMPL=${ROS_TMPL//DISPLAY_GAZEBO/$DISPLAY_GAZEBO}
@@ -124,25 +136,31 @@ for (( r=1; r<=$ROBOTS; r++)); do
   echo "${ROS_TMPL//PORT/$PORT}" > ${ROS_TMP}
 
   robot=${robot//DEBUG_PORT/$DEBUG_PORT}
-  robot=${robot//PORT/$PORT}
+  robot=${robot//ROSPORT/$PORT}
   robot=${robot//TIMESTAMP/$TIMESTAMP}
   robot=${robot//ROS_TMP/$ROS_TMP}
   robot=${robot//ROBOTNAME/robot$r}
   robot=${robot//DIARC_SRC/$DIARC_SRC}
   robot=${robot//ROBOT_IP/$ROBOT_IP}
   robot=${robot//TRADE_PROPERTIES/$TRADE_PROPERTIES}
+  robot=${robot//UNITYPORT/$UNITY_PORT}
+  robot=${robot//GRADLE_PROPERTIES/$GRADLE_PROPERTIES}
 
   robot=${robot//ENVDISPLAY/$DISPLAY}
   echo "$robot" >> ${DOCKER_COMPOSE}
 
   echo "robot${r}:" >> ${TMPDISPLAY}
-  echo "  (remote) Unity Server        : ${UNITY_IP}:1755" >> ${TMPDISPLAY}
+  echo "  (remote) Unity Server        : ${UNITY_IP}:${UNITY_PORT}" >> ${TMPDISPLAY}
   echo "  (local)  Rosbridge Port      : ${PORT}" >> ${TMPDISPLAY}
   PORT=$((PORT+1))
   ROBOT_START=$((ROBOT_START+1))
-  TRADE_PROPERTIES_TMPL=$(< "./config/diarc/trade.spoke.properties")
   if [ ! -z "${2}" ]; then
     DIARC_SRC="$(realpath ${2})"
+  fi
+  if [[ "${SMM}" == "true" ]]; then
+    TRADE_PROPERTIES_TMPL=$(< "./config/diarc/trade.spoke.properties")
+  else 
+    UNITY_PORT=$((UNITY_PORT+1))
   fi
 done
 

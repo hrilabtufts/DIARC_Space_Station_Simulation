@@ -58,10 +58,10 @@ mkdir -p /root/.gradle
 cp /root/gradle.properties /root/.gradle/gradle.properties
 echo "---------LAUNCHING CONFIG-----------"
 
-if [[ "${DIARC_ROBOT}" == "robot1" ]]; then
+if [[ "${DIARC_ROBOT}" == "robot1" ]] || [[ "${SMM}" == "false" ]]; then
   echo ${DIARC_CONFIG}
-  ./gradlew launch -Pmain=${DIARC_CONFIG} --args="-unity ${UNITY_IP} -llm ${LLM}"
+  ./gradlew launch -Pmain=${DIARC_CONFIG} --args="-unity ${UNITY_IP} -port ${UNITY_PORT} -llm ${LLM} -agent ${DIARC_ROBOT}"
 else 
   echo ${DIARC_CONFIG_SPOKE}
-  ./gradlew launch -Pmain=${DIARC_CONFIG_SPOKE} --args="-unity ${UNITY_IP} -llm ${LLM}"
+  ./gradlew launch -Pmain=${DIARC_CONFIG_SPOKE} --args="-unity ${UNITY_IP} -port ${UNITY_PORT} -llm ${LLM} -agent ${DIARC_ROBOT}"
 fi

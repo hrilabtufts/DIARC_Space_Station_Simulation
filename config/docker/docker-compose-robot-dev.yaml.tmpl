@@ -1,7 +1,7 @@
     ROBOTNAME:
         privileged: true
         ports:
-            - 'PORT:9090'
+            - 'ROSPORT:9090'
         expose:
             - '10001'
         environment:
@@ -12,6 +12,7 @@
             - DISPLAY=ENVDISPLAY
             - DIARC_ENVIRONMENT=development
             - DIARC_ROBOT=ROBOTNAME
+            - UNITY_PORT=UNITYPORT
         volumes:
             - './.env:/code/scripts/.env'
             - './.env:/code/diarc/.env'
@@ -26,7 +27,7 @@
             - './share/pr2_navigation_global/move_base.xml:/opt/ros/indigo/share/pr2_navigation_global/move_base.xml'
             - './share/pr2_2dnav/launch/pr2_2dnav.launch:/opt/ros/indigo/share/pr2_2dnav/launch/pr2_2dnav.launch'
             - './cache:/root/.diarc'
-            - './config/gradle/gradle.properties:/root/gradle.properties'
+            - 'GRADLE_PROPERTIES:/root/gradle.properties'
             - 'TRADE_PROPERTIES:/root/trade.properties'
             - './config/diarc/logback.xml:/root/logback.xml'
         ulimits:

@@ -28,9 +28,11 @@ askContinue () {
 DOCKER_COMPOSE="./docker-compose.yaml"
 TIMESTAMP=$(date '+%s')
 TMPDISPLAY=$(mktemp)
-TRADE_PROPERTIES="./config/diarc/trade.hub.properties"
+TRADE_PROPERTIES_CONF="diarc.tradePropertiesFile=/root/trade.properties"
+TRADE_PROPERTIES_TMPL=$(< "./config/diarc/trade.hub.properties")
 ROS_TMPL_FILE="startup_pr2_docker.launch.tmpl"
 PORT=9090
+UNITY_PORT=1755
 ROBOT_START=4
 
 if [ -z $ROBOTS ]; then
@@ -93,6 +95,7 @@ for (( r=1; r<=$ROBOTS; r++)); do
   mkdir -p logs/${TIMESTAMP}-${PORT}-ros/
   mkdir -p logs/${TIMESTAMP}-${PORT}-diarc/
 
+
   if [[ "${HEADLESS}" == "true" ]]; then
     robot=$(< config/docker/docker-compose-robot-headless.yaml.tmpl)
   else 
@@ -100,7 +103,20 @@ for (( r=1; r<=$ROBOTS; r++)); do
   fi
 
   ROS_TMP=$(mktemp)
+  TRADE_PROPERTIES=$(mktemp)
   ROBOT_IP="${NETWORK_PREFIX}.0.${ROBOT_START}"
+
+  TRADE_PROPERTIES_TMPL=${TRADE_PROPERTIES_TMPL//NETWORK_PREFIX/$NETWORK_PREFIX}
+  echo "${TRADE_PROPERTIES_TMPL}" > ${TRADE_PROPERTIES}
+
+  GRADLE_PROPERTIES=$(mktemp)
+  GRADLE_PROPERTIES_TMPL=$(< "./config/gradle/gradle.properties")
+  if [[ "${SMM}" == "true" ]]; then
+    GRADLE_PROPERTIES_TMPL=${GRADLE_PROPERTIES_TMPL//TRADE_PROPERTIES/$TRADE_PROPERTIES_CONF}
+  else 
+    GRADLE_PROPERTIES_TMPL=${GRADLE_PROPERTIES_TMPL//TRADE_PROPERTIES/}
+  fi
+  echo "${GRADLE_PROPERTIES_TMPL}" > ${GRADLE_PROPERTIES}
 
   ROS_TMPL=$(cat config/ros/${ROS_TMPL_FILE})
   ROS_TMPL=${ROS_TMPL/DISPLAY_RVIZ/$DISPLAY_RVIZ}
@@ -111,23 +127,29 @@ for (( r=1; r<=$ROBOTS; r++)); do
 
   echo $ROBOT_IP
 
-  robot=${robot//PORT/$PORT}
+  robot=${robot//ROSPORT/$PORT}
   robot=${robot//TIMESTAMP/$TIMESTAMP}
   robot=${robot/ROS_TMP/$ROS_TMP}
   robot=${robot/ROBOTNAME/robot$r}
   robot=${robot//ROBOT_IP/$ROBOT_IP}
   robot=${robot//TRADE_PROPERTIES/$TRADE_PROPERTIES}
+  robot=${robot//UNITYPORT/$UNITY_PORT}
+  robot=${robot//GRADLE_PROPERTIES/$GRADLE_PROPERTIES}
 
   robot=${robot//ENVDISPLAY/$DISPLAY}
   echo "$robot" >> ${DOCKER_COMPOSE}
 
   echo "robot${r}:" >> ${TMPDISPLAY}
-  echo "  (remote) Unity Server   : ${1}:1755" >> ${TMPDISPLAY}
+  echo "  (remote) Unity Server   : ${1}:${UNITY_PORT}" >> ${TMPDISPLAY}
   echo "  (local)  Rosbridge Port : ${PORT}" >> ${TMPDISPLAY}
   
   PORT=$((PORT+1))
   ROBOT_START=$((ROBOT_START+1))
-  TRADE_PROPERTIES="./config/diarc/trade.spoke.properties"
+  if [[ "${SMM}" == "true" ]]; then
+    TRADE_PROPERTIES_TMPL=$(< "./config/diarc/trade.spoke.properties")
+  else 
+    UNITY_PORT=$((UNITY_PORT+1))
+  fi
 done
 
 network=$(< config/docker/docker-compose-network.yaml.tmpl)

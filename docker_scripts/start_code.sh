@@ -8,16 +8,21 @@ NC='\033[0m'
 DIARC="/code/diarc"
 ROSJAVA="/code/rosjava_core"
 
+source /code/scripts/.env
+
 # source ROS
 source /opt/ros/indigo/setup.bash
 
 if [[ "${DIARC_ENVIRONMENT}" == "development" ]] && [[ "${REBUILD}" != "false" ]]; then
+  printf "\n${GREEN}Cleaning and rebuilding${NC} Java projects..."
   cd $ROSJAVA
   ./gradlew clean buildAndPublishDiarcRos
 
   # rebuild DIARC
   cd $DIARC
   ./gradlew clean assemble
+else
+  echo "Skipping clean and rebuild..."
 fi
 
 
@@ -25,7 +30,6 @@ fi
 source /catkin_ws/devel/setup.bash
 
 # set ENV
-source /code/scripts/.env
 export ROS_PACKAGE_PATH=$DIARC:$ROSJAVA:$ROS_PACKAGE_PATH
 echo $ROS_PACKAGE_PATH
 export ROBOT=sim
@@ -37,7 +41,7 @@ if [[ "${WAIT}" == "" ]]; then
   WAIT=40
 fi
 
-if [[ "${DIARC_ROBOT}" != "robot1" ]]; then
+if [[ "${DIARC_ROBOT}" != "robot1" ]] || [[ "${SMM}" == "true" ]]; then
   sleep 20
 fi
 

@@ -64,8 +64,8 @@ echo "---------LAUNCHING CONFIG-----------"
 
 if [[ "${DIARC_ROBOT}" == "robot1" ]] || [[ "${SMM}" == "false" ]]; then
   echo ${DIARC_CONFIG}
-  ./gradlew launch -Pmain=${DIARC_CONFIG} --args="-unity ${UNITY_IP} -port ${UNITY_PORT} -llm ${LLM} -agent ${DIARC_ROBOT}"
+  ./gradlew launch -Pmain=${DIARC_CONFIG} --args="-unity ${UNITY_IP} -port ${UNITY_PORT} -llm ${LLM} -agent ${DIARC_ROBOT} ${EXTRA_ARGS}"
 else 
   echo ${DIARC_CONFIG_SPOKE}
-  ./gradlew launch -Pmain=${DIARC_CONFIG_SPOKE} --args="-unity ${UNITY_IP} -port ${UNITY_PORT} -llm ${LLM} -agent ${DIARC_ROBOT}"
+  ./gradlew launch -Pmain=${DIARC_CONFIG_SPOKE} --args="-unity ${UNITY_IP} -port ${UNITY_PORT} -llm ${LLM} -agent ${DIARC_ROBOT} ${EXTRA_ARGS}"
 fi

@@ -26,7 +26,7 @@ askContinue () {
 }
 
 DOCKER_COMPOSE="./docker-compose.yaml"
-TIMESTAMP=$(date '+%s')
+TIMESTAMP=$(date '+%Y_%m_%d-%H_%M_%S')
 TMPDISPLAY=$(mktemp)
 TRADE_PROPERTIES_CONF="diarc.tradePropertiesFile=/root/trade.properties"
 TRADE_PROPERTIES_TMPL=$(< "./config/diarc/trade.hub.properties")

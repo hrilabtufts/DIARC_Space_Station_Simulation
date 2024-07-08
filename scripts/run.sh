@@ -105,6 +105,7 @@ for (( r=1; r<=$ROBOTS; r++)); do
   ROS_TMP=$(mktemp)
   TRADE_PROPERTIES=$(mktemp)
   ROBOT_IP="${NETWORK_PREFIX}.0.${ROBOT_START}"
+  LLMURL="${LLM_URL}:${LLM_PORT}"
 
   TRADE_PROPERTIES_TMPL=${TRADE_PROPERTIES_TMPL//NETWORK_PREFIX/$NETWORK_PREFIX}
   echo "${TRADE_PROPERTIES_TMPL}" > ${TRADE_PROPERTIES}
@@ -129,12 +130,14 @@ for (( r=1; r<=$ROBOTS; r++)); do
 
   robot=${robot//ROSPORT/$PORT}
   robot=${robot//TIMESTAMP/$TIMESTAMP}
-  robot=${robot/ROS_TMP/$ROS_TMP}
-  robot=${robot/ROBOTNAME/robot$r}
+  robot=${robot//ROS_TMP/$ROS_TMP}
+  robot=${robot//ROBOTNAME/robot$r}
+  robot=${robot//DIARC_SRC/$DIARC_SRC}
   robot=${robot//ROBOT_IP/$ROBOT_IP}
   robot=${robot//TRADE_PROPERTIES/$TRADE_PROPERTIES}
   robot=${robot//UNITYPORT/$UNITY_PORT}
   robot=${robot//GRADLE_PROPERTIES/$GRADLE_PROPERTIES}
+  robot=${robot//LLMURL/$LLMURL}
 
   robot=${robot//ENVDISPLAY/$DISPLAY}
   echo "$robot" >> ${DOCKER_COMPOSE}
@@ -144,6 +147,7 @@ for (( r=1; r<=$ROBOTS; r++)); do
   echo "  (local)  Rosbridge Port : ${PORT}" >> ${TMPDISPLAY}
   
   PORT=$((PORT+1))
+  LLM_PORT=$((LLM_PORT+1))
   ROBOT_START=$((ROBOT_START+1))
   if [[ "${SMM}" == "true" ]]; then
     TRADE_PROPERTIES_TMPL=$(< "./config/diarc/trade.spoke.properties")

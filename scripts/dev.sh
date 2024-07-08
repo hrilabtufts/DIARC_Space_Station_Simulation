@@ -115,6 +115,7 @@ for (( r=1; r<=$ROBOTS; r++)); do
   ROS_TMP=$(mktemp)
   TRADE_PROPERTIES=$(mktemp)
   ROBOT_IP="${NETWORK_PREFIX}.0.${ROBOT_START}"
+  LLMURL="${LLM_URL}:${LLM_PORT}"
 
   TRADE_PROPERTIES_TMPL=${TRADE_PROPERTIES_TMPL//NETWORK_PREFIX/$NETWORK_PREFIX}
   echo "${TRADE_PROPERTIES_TMPL}" > ${TRADE_PROPERTIES}
@@ -145,6 +146,7 @@ for (( r=1; r<=$ROBOTS; r++)); do
   robot=${robot//TRADE_PROPERTIES/$TRADE_PROPERTIES}
   robot=${robot//UNITYPORT/$UNITY_PORT}
   robot=${robot//GRADLE_PROPERTIES/$GRADLE_PROPERTIES}
+  robot=${robot//LLMURL/$LLMURL}
 
   robot=${robot//ENVDISPLAY/$DISPLAY}
   echo "$robot" >> ${DOCKER_COMPOSE}
@@ -153,6 +155,7 @@ for (( r=1; r<=$ROBOTS; r++)); do
   echo "  (remote) Unity Server        : ${UNITY_IP}:${UNITY_PORT}" >> ${TMPDISPLAY}
   echo "  (local)  Rosbridge Port      : ${PORT}" >> ${TMPDISPLAY}
   PORT=$((PORT+1))
+  LLM_PORT=$((LLM_PORT+1))
   ROBOT_START=$((ROBOT_START+1))
   if [ ! -z "${2}" ]; then
     DIARC_SRC="$(realpath ${2})"

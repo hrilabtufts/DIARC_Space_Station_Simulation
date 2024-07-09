@@ -2,6 +2,7 @@
 <configuration>
   <import class="ch.qos.logback.classic.encoder.PatternLayoutEncoder"/>
   <import class="ch.qos.logback.core.ConsoleAppender"/>
+  <import class="ch.qos.logback.core.FileAppender"/>
 
   <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
     <!-- encoders are assigned the type
@@ -10,9 +11,17 @@
       <pattern>>%d{HH:mm:ss.SSS} %highlight(%-5level) %gray(%logger{0}) -%kvp- %msg%n%xEx</pattern>
     </encoder>
   </appender>
+  <appender name="File" class="ch.qos.logback.core.FileAppender">
+    <file>/root/diarc_logs/diarc.log</file>
+    <append>false</append>
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %logger{0} -%kvp- %msg%n%xEx</pattern>
+    </encoder>
+  </appender>
 
   <root level="info">
     <appender-ref ref="Console"/>
+    <appender-ref ref="File"/>
   </root>
   <logger name="edu.tufts.hrilab.unity.UnityComponent" level="DEBUG"/>
   <logger name="edu.tufts.hrilab.unity.UnityAgent" level="DEBUG"/>

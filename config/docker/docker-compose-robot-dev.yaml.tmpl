@@ -23,8 +23,8 @@
             - './docker_scripts/start_code.sh:/code/scripts/start_code.sh'
             - ROS_TMP:/catkin_ws/src/unity_ros/launch/startup_pr2_docker.launch
             - DIARC_SRC:/code/diarc/
-            - './logs/TIMESTAMP-PORT-diarc/:/code/diarc/logs/'
-            - './logs/TIMESTAMP-PORT-ros/:/root/.ros/log/'
+            - './logs/TIMESTAMP-ROSPORT-diarc/:/code/diarc/logs/'
+            - './logs/TIMESTAMP-ROSPORT-ros/:/root/.ros/log/'
             - './share/pr2_navigation_global/move_base.xml:/opt/ros/indigo/share/pr2_navigation_global/move_base.xml'
             - './share/pr2_2dnav/launch/pr2_2dnav.launch:/opt/ros/indigo/share/pr2_2dnav/launch/pr2_2dnav.launch'
             - './cache:/root/.diarc'

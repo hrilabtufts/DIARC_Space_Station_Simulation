@@ -30,4 +30,6 @@
   <logger name="edu.tufts.hrilab.movebase.MoveBase" level="DEBUG"/>
   <logger name="edu.tufts.hrilab.slug.parsing.hybrid.HybridParserComponent" level="DEBUG"/>
   <logger name="edu.tufts.hrilab.slug.parsing.llm.LLMParserComponent" level="DEBUG"/>
+  <logger name="edu.tufts.hrilab.slug.parsing.cache.CachedParserComponent" level="DEBUG"/>
+  <logger name="edu.tufts.hrilab.slug.parsing.cache.CacheDatabase" level="DEBUG"/>
 </configuration>

@@ -148,11 +148,6 @@ for (( r=1; r<=$ROBOTS; r++)); do
   robot=${robot//GRADLE_PROPERTIES/$GRADLE_PROPERTIES}
   robot=${robot//LLMURL/$LLMURL}
 
-  #hack for now
-  if [[ "${r}" == "2" ]]; then
-    robot=${robot//diarcros_core/diarcros_core2}
-  fi
-
   robot=${robot//ENVDISPLAY/$DISPLAY}
   echo "$robot" >> ${DOCKER_COMPOSE}
 

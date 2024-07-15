@@ -174,16 +174,16 @@ RUN mkdir -p ${CODE}
 WORKDIR ${CODE}
 RUN git clone -b main --single-branch https://github.com/mscheutz/diarc.git ${CODE}/diarc
 
-# Clone ROSJAVA
-RUN git clone https://github.com/evankrause/rosjava_core.git ${CODE}/rosjava_core
-WORKDIR ${CODE}/rosjava_core
-RUN git checkout reporelease
+# Clone DIARCROS
+RUN git clone https://github.com/hrilabtufts/diarcros_core.git ${CODE}/diarcros_core
+WORKDIR ${CODE}/diarcros_core
+RUN git checkout spring-fixes
 
 # Set build ENV
 ENV JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8
-ENV ROS_PACKAGE_PATH=$DIARC:$ROSJAVA:$ROS_PACKAGE_PATH
+ENV ROS_PACKAGE_PATH=$DIARC:$DIARCROS:$ROS_PACKAGE_PATH
 ENV DIARC=${CODE}/diarc
-ENV ROSJAVA=${CODE}/rosjava_core
+ENV DIARCROS=${CODE}/diarcros_core
 
 COPY ./docker_scripts/build_code.sh $SCRIPTS/build_code.sh
 

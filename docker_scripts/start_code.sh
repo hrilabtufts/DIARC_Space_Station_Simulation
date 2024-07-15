@@ -6,7 +6,7 @@ GREEN='\033[0;32m'
 NC='\033[0m'
 
 DIARC="/code/diarc"
-ROSJAVA="/code/rosjava_core"
+DIARCROS="/code/diarcros_core"
 
 source /code/scripts/.env
 
@@ -15,7 +15,7 @@ source /opt/ros/indigo/setup.bash
 
 if [[ "${DIARC_ENVIRONMENT}" == "development" ]] && [[ "${REBUILD}" != "false" ]]; then
   printf "\n${GREEN}Cleaning and rebuilding${NC} Java projects..."
-  cd $ROSJAVA
+  cd $DIARCROS
   ./gradlew clean buildAndPublishDiarcRos
 
   # rebuild DIARC
@@ -30,7 +30,7 @@ fi
 source /catkin_ws/devel/setup.bash
 
 # set ENV
-export ROS_PACKAGE_PATH=$DIARC:$ROSJAVA:$ROS_PACKAGE_PATH
+export ROS_PACKAGE_PATH=$DIARC:$DIARCROS:$ROS_PACKAGE_PATH
 echo $ROS_PACKAGE_PATH
 export ROBOT=sim
 export ROS_IP=$(hostname -I | xargs)

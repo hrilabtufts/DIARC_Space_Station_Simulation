@@ -9,10 +9,10 @@ echo "DEBUG: INSTALL DEPENDENCIES"
 
 cd $DIARC
 
-echo "DEBUG: BUILD ROSJAVA"
+echo "DEBUG: BUILD DIARCROS"
 
-# build rosjava
-cd $ROSJAVA
+# build DIARCROS
+cd $DIARCROS
 ./gradlew clean buildAndPublishDiarcRos
 
 echo "DEBUG: BUILD DIARC"

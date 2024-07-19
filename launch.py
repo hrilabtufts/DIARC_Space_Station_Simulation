@@ -46,6 +46,11 @@ class DIARCSpaceStation:
 	gradle_properties_tmpl = './config/gradle/gradle.properties'
 
 	ros_tmpl = './config/ros/startup_pr2_docker.launch.tmpl'
+
+	docker_compose_robot_dev_tmpl = './config/docker/docker-compose-robot-dev.yaml.tmpl'
+	docker_compose_robot_dev_headless_tmpl = './config/docker/docker-compose-robot-dev-headless.yaml.tmpl'
+	docker_compose_robot_tmpl = './config/docker/docker-compose-robot.yaml.tmpl'
+	docker_compose_robot_headless_tmpl = './config/docker/docker-compose-robot-headless.yaml.tmpl'
 	
 	ros_port = 9090
 	unity_port = 1755
@@ -176,6 +181,7 @@ class DIARCSpaceStation:
 			robot_name = f'robot{i+1}'
 			robot_ip = f'{self._env["NETWORK_PREFIX"]}.0.{network}'
 			llm_url = f'{self._env["LLM_URL"]}:{llm_port}'
+			diarc = os.path.realpath(self._args.diarc[i])
 
 			trade_properties_tmp = self._mktemp()
 			trade_properties = self._tradeProperties(i)
@@ -189,6 +195,9 @@ class DIARCSpaceStation:
 			ros = self._rosConfig(ros_port, gui)
 			self._writeLines(ros_tmp, ros)
 
+			robot = self._robot(True, gui, robot_name, timestamp, ros_port, ros_tmp, diarc, robot_ip, trade_properties_tmp, unity_port, gradle_properties_tmp, llm_url)
+
+			docker_compose += robot
 
 			ros_port += 1
 			unity_port += 1
@@ -233,6 +242,31 @@ class DIARCSpaceStation:
 			'DISPLAY_GAZEBO' : str(gui)
 		}
 		return self._replaceLines(ros, ros_map)
+
+	def _robot (self, dev, gui, robot_name, timestamp, ros_port, ros_tmp, diarc, robot_ip, trade_properties_tmp, unity_port, gradle_properties_tmp, llm_url) :
+		tmpl = self.docker_compose_robot_tmpl
+		if not dev and gui :
+			tmpl = self.docker_compose_robot_headless_tmpl
+		elif dev and gui :
+			tmpl = self.docker_compose_robot_dev_tmpl
+		elif dev and not gui :
+			tmpl = self.docker_compose_robot_dev_headless_tmpl
+		self._log(f'Using docker compose template {tmpl}')
+		docker_compose_entry = self._readLines(tmpl)
+		docker_compose_map = {
+			'ROSPORT' : str(ros_port),
+			'TIMESTAMP' : timestamp,
+			'ROS_TMP' : ros_tmp,
+			'ROBOTNAME' : robot_name,
+			'DIARC_SRC' : diarc,
+			'ROBOT_IP' : robot_ip,
+			'TRADE_PROPERTIES' : trade_properties_tmp,
+			'UNITYPORT' : str(unity_port),
+			'GRADLE_PROPERTIES' : gradle_properties_tmp,
+ 			'LLMURL' : llm_url
+		}
+
+		return self._replaceLines(docker_compose_entry, docker_compose_map)
 
 	def _setupX (self) :
 		'''Used to set up X auth for the GUI features but deprecated for now'''

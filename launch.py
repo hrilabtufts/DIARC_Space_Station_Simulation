@@ -19,12 +19,14 @@ dev = subparsers.add_parser('dev', add_help=False, help='Run the simulation serv
 dev.add_argument('-g', '--gui', default=False, action='store_true', help='Enable GUI settings in DIARC and ROS')
 dev.add_argument('-r', '--robots', type=int, default=None, help='Set the number of robots to spawn in the trial')
 dev.add_argument('-s', '--smm', default=None, action='store_true', help='Set the number of robots to spawn in the trial')
+dev.add_argument('-n', '--noServer', default=False, action='store_true', help='Run without launching Unity server so it can be launched elsewhere')
 dev.add_argument('diarc', type=str, nargs='+')
 
 run = subparsers.add_parser('run', add_help=False, help='Run the simulation server(s) in production mode')
 run.add_argument('-g', '--gui', default=False, action='store_true', help='Enable GUI settings in DIARC and ROS')
 run.add_argument('-r', '--robots', type=int, default=None, help='Set the number of robots to spawn in the trial')
 run.add_argument('-s', '--smm', default=None, action='store_true', help='Set the number of robots to spawn in the trial')
+run.add_argument('-n', '--noServer', default=False, action='store_true', help='Run without launching Unity server so it can be launched elsewhere')
 
 stop = subparsers.add_parser('stop', add_help=False, help='Gracefully stop all docker containers')
 kill = subparsers.add_parser('kill', add_help=False, help='Kill all docker containers')
@@ -36,6 +38,7 @@ class DIARCSpaceStation:
 	docker_compose = './docker-compose.yaml'
 
 	additional_services_tmpl = './config/docker/docker-compose-additional-services.yaml.tmpl'
+	network_tmpl = './config/docker/docker-compose-network.yaml.tmpl'
 	
 	trade_properties_default = 'diarc.tradePropertiesFile=src/main/resources/default/trade.properties.default'
 	trade_properties_smm = 'diarc.tradePropertiesFile=/root/trade.properties'
@@ -51,10 +54,21 @@ class DIARCSpaceStation:
 	docker_compose_robot_dev_headless_tmpl = './config/docker/docker-compose-robot-dev-headless.yaml.tmpl'
 	docker_compose_robot_tmpl = './config/docker/docker-compose-robot.yaml.tmpl'
 	docker_compose_robot_headless_tmpl = './config/docker/docker-compose-robot-headless.yaml.tmpl'
+
+	unity_server_bin = './Space_Station_SMM_Server.x86_64'
+
+	required_keys = ['BIN' , 'UNITY_IP', 'DIARC_CONFIG', 'LLM_URL', 'LLM_PORT', 'SERVER', 'SMM', 'NETWORK_PREFIX']
 	
 	ros_port = 9090
 	unity_port = 1755
 	network_start = 4
+	robots = 0
+	ros_started = []
+	unity_started = False
+
+	docker_proc = None
+	unity_proc = None
+
 
 	def __init__ (self, args) :
 		self._args = args
@@ -63,11 +77,14 @@ class DIARCSpaceStation:
 
 		if args.command in ['run', 'dev'] :
 			self._readEnv()
+			self._overrides()
 
 		if args.command == 'build' :
 			self._build()
 		elif args.command == 'dev' :
-			self._dev()
+			self._run(True)
+		elif args.command == 'run' :
+			self._run(False)
 		elif args.command == 'kill' :
 			self._kill()
 		elif args.command == 'stop' :
@@ -94,6 +111,14 @@ class DIARCSpaceStation:
 					value = True
 				self._env[key] = value
 				print(f'[ENV] {key} = {value}')
+		keys = list(self._env.keys())
+		failed = False
+		for key in self.required_keys :
+			if key not in keys :
+				print(f'[ENV] Missing required key "{key}" in .env file')
+				failed = True
+		if failed :
+			exit(1)
 		self._line()
 
 	def _overrides(self) :
@@ -142,12 +167,12 @@ class DIARCSpaceStation:
 		for line in proc.stdout :
 			print(f'[STOP] {line}')
 
-	def _dev(self) :
-		print('dev()')
-		print(self._args)
-		self._overrides()
-
-		robot_tmpl = './config/docker/docker-compose-robot-dev-headless.yaml.tmpl'
+	def _run(self, dev) :
+		print(f'{self._args.command.lower()}()')
+		
+		robot_tmpl = './config/docker/docker-compose-robot-headless.yaml.tmpl'
+		if dev :
+			robot_tmpl = './config/docker/docker-compose-robot-dev-headless.yaml.tmpl'
 
 		timestamp = datetime.now().strftime('%Y_%m_%d-%H_%M_%S')
 		robots = int(self._env['ROBOTS'])
@@ -157,15 +182,27 @@ class DIARCSpaceStation:
 		network = self.network_start
 		gui = False
 
-		if len(self._args.diarc) != robots :
+		if robots > 2 :
+			self._log(f'ERROR: Cannot support more than 2 robots with this script')
+			exit(1)
+
+
+		if dev and len(self._args.diarc) != robots :
 			self._log(f'ERROR: Robot count ({robots}) != number of DIARC directories in command ({len(self._args.diarc)})')
 			exit(1)
+
+		for i in range(robots) :
+			self.ros_started.append(False)
 
 		if self._args.gui :
 			self._log('WARN: GUI features not available in this version of the script.')
 			#self._setupX()
-			#robot_tmpl = './config/docker/docker-compose-robot-dev.yaml.tmpl'
+			#robot_tmpl = './config/docker/docker-compose-robot.yaml.tmpl'
+			#if dev :
+			#	robot_tmpl = './config/docker/docker-compose-robot-dev.yaml.tmpl'
 			#gui = True
+
+		self.robots = robots
 		
 		self._mkdir('./logs')
 		self._mkdir('./cache')
@@ -193,9 +230,13 @@ class DIARCSpaceStation:
 
 			ros_tmp = self._mktemp()
 			ros = self._rosConfig(ros_port, gui)
+			self._line()
+			for line in ros :
+				self._log(line)
+			self._line()
 			self._writeLines(ros_tmp, ros)
 
-			robot = self._robot(True, gui, robot_name, timestamp, ros_port, ros_tmp, diarc, robot_ip, trade_properties_tmp, unity_port, gradle_properties_tmp, llm_url)
+			robot = self._robot(dev, gui, robot_name, timestamp, ros_port, ros_tmp, diarc, robot_ip, trade_properties_tmp, unity_port, gradle_properties_tmp, llm_url)
 
 			docker_compose += robot
 
@@ -204,8 +245,43 @@ class DIARCSpaceStation:
 			llm_port += 1
 			network += 1
 
+		network = self._network()
+		docker_compose += network
+
+		self._line()
 		for line in docker_compose :
 			self._log(line)
+		self._line()
+
+		self._writeLines(self.docker_compose, docker_compose)
+		self._waitForYes()
+		self._dockerCompose()
+
+	def _dockerCompose (self) :
+		self._log(f'Launching via {self._env["BIN"]}...')
+		cmd = self._env['BIN'] + ' up --remove-orphans'
+		self.docker_proc = subprocess.Popen(cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		for line in self.docker_proc.stdout :
+			self._parseLog(line)
+
+	def _parseLog (self, line) :
+		line = line.decode('ascii').strip()
+		print(line)
+		if not self._args.noServer :
+			if not self.ros_started[0] and 'robot1-' in line and 'process[tilt_shadow_filter-' in line :
+				self.ros_started[0] = True
+			if self.robots == 2 and not self.ros_started[1] and 'robot2-' in line and 'process[tilt_shadow_filter-' in line :
+				self.ros_started[1] = True
+
+			if not self.unity_started and False not in self.ros_started :
+				self._unityServer()
+
+	def _unityServer (self) :
+		self.unity_started = True
+		self._log('STARTING UNITY')
+		cmd = [ self.unity_server_bin ]
+		self.unity_proc = subprocess.Popen(cmd, cwd=self._env['SERVER'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
 
 	def _additionalServices (self) :
 		additional_services = self._readLines(self.additional_services_tmpl)
@@ -213,6 +289,13 @@ class DIARCSpaceStation:
 			'NETWORK_PREFIX' : self._env['NETWORK_PREFIX']
 		}
 		return self._replaceLines(additional_services, additional_services_map)
+
+	def _network (self) :
+		network = self._readLines(self.network_tmpl)
+		network_map = {
+			'NETWORK_PREFIX' : self._env['NETWORK_PREFIX']
+		}
+		return self._replaceLines(network, network_map)
 
 	def _tradeProperties (self, i) :
 		trade_properties_tmpl = self.trade_properties_hub_tmpl
@@ -235,7 +318,6 @@ class DIARCSpaceStation:
 		return self._replaceLines(gradle_properties, gradle_properties_map)
 
 	def _rosConfig (self, ros_port, gui) :
-
 		ros = self._readLines(self.ros_tmpl)
 		ros_map = {
 			'DISPLAY_RVIZ' : str(gui),
@@ -303,7 +385,7 @@ class DIARCSpaceStation:
 
 	def _shellPrint(self, cmd) :
 		self._log(f'CMD: {cmd}')
-		proc = subprocess.run(cmd, stdout=subprocess.PIPE)
+		proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 		for line in proc.stdout :
 			self._log(line)
 
@@ -343,6 +425,14 @@ class DIARCSpaceStation:
 
 	def _line(self) :
 		print('------------------------------')
+
+	def _waitForYes (self) :
+		val = input('Are you ready to continue? (yes/no) : ')
+		if val.strip() == '' or 'y' in val.lower() :
+			self._log('Continuing')
+		else :
+			self._log('Cancelled')
+			exit()
 
 
 if __name__ == '__main__':

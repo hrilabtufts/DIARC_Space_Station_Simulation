@@ -5,6 +5,8 @@ from datetime import datetime
 import os
 import subprocess
 import tempfile
+import signal
+import sys
 
 
 parser = ArgumentParser(prog='DIARC Space Station Simulation',
@@ -20,6 +22,7 @@ dev.add_argument('-g', '--gui', default=False, action='store_true', help='Enable
 dev.add_argument('-r', '--robots', type=int, default=None, help='Set the number of robots to spawn in the trial')
 dev.add_argument('-s', '--smm', default=None, action='store_true', help='Set the number of robots to spawn in the trial')
 dev.add_argument('-n', '--noServer', default=False, action='store_true', help='Run without launching Unity server so it can be launched elsewhere')
+dev.add_argument('-o', '--output', default=None, type=str, help='Directory to save log files to. If it does not exist, it will be created.')
 dev.add_argument('diarc', type=str, nargs='+')
 
 run = subparsers.add_parser('run', add_help=False, help='Run the simulation server(s) in production mode')
@@ -27,12 +30,15 @@ run.add_argument('-g', '--gui', default=False, action='store_true', help='Enable
 run.add_argument('-r', '--robots', type=int, default=None, help='Set the number of robots to spawn in the trial')
 run.add_argument('-s', '--smm', default=None, action='store_true', help='Set the number of robots to spawn in the trial')
 run.add_argument('-n', '--noServer', default=False, action='store_true', help='Run without launching Unity server so it can be launched elsewhere')
+run.add_argument('-o', '--output', default=None, type=str, help='Directory to save log files to. If it does not exist, it will be created.')
 
 stop = subparsers.add_parser('stop', add_help=False, help='Gracefully stop all docker containers')
 kill = subparsers.add_parser('kill', add_help=False, help='Kill all docker containers')
 
 args = parser.parse_args()
 
+
+global_dict = {}
 
 class DIARCSpaceStation:
 	docker_compose = './docker-compose.yaml'
@@ -65,6 +71,9 @@ class DIARCSpaceStation:
 	robots = 0
 	ros_started = []
 	unity_started = False
+	write_to_log = False
+	log_file = None
+	log_dirs = []
 
 	docker_proc = None
 	unity_proc = None
@@ -74,10 +83,6 @@ class DIARCSpaceStation:
 		self._args = args
 		print('DIARC Space Station Simulation')
 		self._line()
-
-		if args.command in ['run', 'dev'] :
-			self._readEnv()
-			self._overrides()
 
 		if args.command == 'build' :
 			self._build()
@@ -169,12 +174,18 @@ class DIARCSpaceStation:
 
 	def _run(self, dev) :
 		print(f'{self._args.command.lower()}()')
+
+		timestamp = datetime.now().strftime('%Y_%m_%d-%H_%M_%S')
+
+		self._logs(timestamp)
+		self._readEnv()
+		self._overrides()
 		
 		robot_tmpl = './config/docker/docker-compose-robot-headless.yaml.tmpl'
 		if dev :
 			robot_tmpl = './config/docker/docker-compose-robot-dev-headless.yaml.tmpl'
 
-		timestamp = datetime.now().strftime('%Y_%m_%d-%H_%M_%S')
+		
 		robots = int(self._env['ROBOTS'])
 		llm_port = int(self._env['LLM_PORT'])
 		ros_port = self.ros_port
@@ -260,8 +271,8 @@ class DIARCSpaceStation:
 	def _dockerCompose (self) :
 		self._log(f'Launching via {self._env["BIN"]}...')
 		cmd = self._env['BIN'] + ' up --remove-orphans'
-		self.docker_proc = subprocess.Popen(cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-		for line in self.docker_proc.stdout :
+		global_dict['docker_proc'] = subprocess.Popen(cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		for line in global_dict['docker_proc'].stdout :
 			self._parseLog(line)
 
 	def _parseLog (self, line) :
@@ -280,8 +291,7 @@ class DIARCSpaceStation:
 		self.unity_started = True
 		self._log('STARTING UNITY')
 		cmd = [ self.unity_server_bin ]
-		self.unity_proc = subprocess.Popen(cmd, cwd=self._env['SERVER'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
+		global_dict['unity_proc'] = subprocess.Popen(cmd, cwd=self._env['SERVER'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 	def _additionalServices (self) :
 		additional_services = self._readLines(self.additional_services_tmpl)
@@ -420,8 +430,25 @@ class DIARCSpaceStation:
 		tmp_file, filename = tempfile.mkstemp()
 		return filename
 
+	def _logs (self, timestamp) :
+		if self._args.output is not None :
+			self.write_to_log = True
+			if os.path.exists(self._args.output) and os.path.isdir(self._args.output) :
+				self._log(f'Output directory {self._args.output} exists')
+			elif os.path.exists(self._args.output) and not os.path.isdir(self._args.output) :
+				self._log(f'ERROR: Output path {self._args.output} exists and is not a directory, exiting...')
+				exit(2)
+			elif not os.path.exists(self._args.output) :
+				self._log(f'Creating output directory {self._args.output}')
+				self._mkdir(self._args.output)
+			launch_log = os.path.join(self._args.output, f'{timestamp}_launch.log')
+			global_dict['log_file'] = open(launch_log, 'a')
+
 	def _log (self, line) :
 		print(f'[{self._args.command.upper()}] {line}')
+		if self.write_to_log and 'log_file' in global_dict :
+			ts = datetime.now().strftime("%Y %m %d %H:%M:%S.%f")
+			global_dict['log_file'].write(f'[{ts}] {line}\n')
 
 	def _line(self) :
 		print('------------------------------')
@@ -434,6 +461,23 @@ class DIARCSpaceStation:
 			self._log('Cancelled')
 			exit()
 
+def exitGracefully () :
+	print('Exiting...')
+	if 'unity_proc' in global_dict :
+		global_dict['unity_proc'].kill()
+		print('Killed Unity server')
+	if 'docker_proc' in global_dict :
+		global_dict['docker_proc'].kill()
+		print('Killed docker compose process')
+	if 'log_file' in global_dict :
+		global_dict['log_file'].close()
+		print('Closed log file')
+
 
 if __name__ == '__main__':
-    DIARCSpaceStation(args)
+	try:
+		DIARCSpaceStation(args)
+	except KeyboardInterrupt:
+		pass
+	finally:
+		exitGracefully()

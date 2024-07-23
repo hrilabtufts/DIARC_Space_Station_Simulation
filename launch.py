@@ -78,7 +78,6 @@ class DIARCSpaceStation:
 	docker_proc = None
 	unity_proc = None
 
-
 	def __init__ (self, args) :
 		self._args = args
 		print('DIARC Space Station Simulation')
@@ -134,7 +133,6 @@ class DIARCSpaceStation:
 		if 'smm' in self._args and self._args.smm is not None :
 			self._log(f'Overriding ENV value SMM ({self._env["SMM"]}) with {self._args.smm}')
 			self._env['SMM'] = self._args.smm 
-
 
 	def _build(self) :
 		'''Build the image. Required prior to run or dev commands.'''
@@ -291,6 +289,7 @@ class DIARCSpaceStation:
 		self.unity_started = True
 		self._log('STARTING UNITY')
 		cmd = [ self.unity_server_bin ]
+		global_dict['unity_logs'] = os.path.join(self._env['SERVER'], 'Space_Station_SMM_Server_Data/StreamingAssets/Output')
 		global_dict['unity_proc'] = subprocess.Popen(cmd, cwd=self._env['SERVER'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 	def _additionalServices (self) :
@@ -443,6 +442,8 @@ class DIARCSpaceStation:
 				self._mkdir(self._args.output)
 			launch_log = os.path.join(self._args.output, f'{timestamp}_launch.log')
 			global_dict['log_file'] = open(launch_log, 'a')
+			global_dict['diarc_ros_logs'] = timestamp
+			global_dict['output'] = self._args.output
 
 	def _log (self, line) :
 		print(f'[{self._args.command.upper()}] {line}')
@@ -461,8 +462,29 @@ class DIARCSpaceStation:
 			self._log('Cancelled')
 			exit()
 
+def copy (src, dest) :
+	cmd = ['cp', '-r', src, dest]
+	proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+	for line in proc.stdout :
+		print(line.decode('ascii').strip())
+	print(f'Copied {src} => {dest}')
+
+def copyLogs (timestamp, output) :
+	dirs = os.listdir('./logs')
+	for dir in dirs :
+		if timestamp in dir :
+			src = os.path.join('./logs', dir)
+			copy(src, output)
+
+def unityLogs (src, output) :
+	dirs = os.listdir(src)
+	dirs.sort(reverse=True)
+	copy(os.path.join(src, dirs[0]), output)
+
+
 def exitGracefully () :
 	print('Exiting...')
+	print(global_dict)
 	if 'unity_proc' in global_dict :
 		global_dict['unity_proc'].kill()
 		print('Killed Unity server')
@@ -472,6 +494,12 @@ def exitGracefully () :
 	if 'log_file' in global_dict :
 		global_dict['log_file'].close()
 		print('Closed log file')
+	if 'diarc_ros_logs' in global_dict :
+		copyLogs(global_dict['diarc_ros_logs'], global_dict['output'])
+		print('Copied DIARC and ROS logs')
+	if 'unity_logs' in global_dict :
+		unityLogs(global_dict['unity_logs'], global_dict['output'])
+		print('Copied Unity logs')
 
 
 if __name__ == '__main__':

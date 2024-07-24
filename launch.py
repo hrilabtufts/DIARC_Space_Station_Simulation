@@ -8,35 +8,45 @@ import tempfile
 import signal
 import sys
 import shutil
+import re
 
-parser = ArgumentParser(prog='DIARC Space Station Simulation',
+has_pyxdf = False
+
+try :
+	import pyxdf
+	has_pyxdf = True
+except ImportError:
+	print('WARNING: Module pyxdf is not installed, LSL data cannot be analyzed after experiment')
+
+parser = ArgumentParser(prog='python launch.py',
                     description='Script for orchestrating the launch of DIARC, ROS and the Unity Space Station environment for experimentation')
 
 subparsers = parser.add_subparsers(dest='command', help='Commands to run', required=True)
 
-build = subparsers.add_parser('build', add_help=False, help='Build the DIARC Space Station docker image')
+build = subparsers.add_parser('build', help='Build the DIARC Space Station docker image')
 build.add_argument('--no-cache', dest='cache', default=True, action='store_false', help='Rebuild image without using cache')
 
-dev = subparsers.add_parser('dev', add_help=False, help='Run the simulation servers in dev mode')
+dev = subparsers.add_parser('dev', help='Run the simulation servers in dev mode')
 dev.add_argument('-g', '--gui', default=False, action='store_true', help='Enable GUI settings in DIARC and ROS')
 dev.add_argument('-r', '--robots', type=int, default=None, help='Set the number of robots to spawn in the trial')
 dev.add_argument('-s', '--smm', default=None, action='store_true', help='Set the number of robots to spawn in the trial')
 dev.add_argument('-n', '--noServer', default=False, action='store_true', help='Run without launching Unity server so it can be launched elsewhere')
 dev.add_argument('-o', '--output', default=None, type=str, help='Directory to save log files to. If it does not exist, it will be created.')
+dev.add_argument('-d', '--dataPort', default=8888, type=int, help='Port to run the data collection server on. Default (8888)')
 dev.add_argument('diarc', type=str, nargs='+')
 
-run = subparsers.add_parser('run', add_help=False, help='Run the simulation server(s) in production mode')
+run = subparsers.add_parser('run', help='Run the simulation server(s) in production mode')
 run.add_argument('-g', '--gui', default=False, action='store_true', help='Enable GUI settings in DIARC and ROS')
 run.add_argument('-r', '--robots', type=int, default=None, help='Set the number of robots to spawn in the trial')
 run.add_argument('-s', '--smm', default=None, action='store_true', help='Set the number of robots to spawn in the trial')
 run.add_argument('-n', '--noServer', default=False, action='store_true', help='Run without launching Unity server so it can be launched elsewhere')
 run.add_argument('-o', '--output', default=None, type=str, help='Directory to save log files to. If it does not exist, it will be created.')
+run.add_argument('-d', '--dataPort', default=None, type=int, help='Port to run the data collection server on. Default (8888)')
 
-stop = subparsers.add_parser('stop', add_help=False, help='Gracefully stop all docker containers')
-kill = subparsers.add_parser('kill', add_help=False, help='Kill all docker containers')
+stop = subparsers.add_parser('stop', help='Gracefully stop all docker containers')
+kill = subparsers.add_parser('kill', help='Kill all docker containers')
 
 args = parser.parse_args()
-
 
 global_dict = {}
 
@@ -78,7 +88,7 @@ class DIARCSpaceStation:
 		self._args = args
 		print('DIARC Space Station Simulation')
 		self._line()
-
+		self.ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 		if args.command == 'build' :
 			self._build()
 		elif args.command == 'dev' :
@@ -135,6 +145,14 @@ class DIARCSpaceStation:
 			if 'SERVER' in self._env :
 				self._log(f'Overriding ENV value SERVER with --noServer flag')
 				del self._env['SERVER']
+
+		if 'dataPort' in self._args and self._args.dataPort is not None:
+			if 'DATA_PORT' in self._env :
+				self._log(f'Overriding ENV value DATA_PORT ({self._env["DATA_PORT"]}) with {self._args.dataPort}')
+			self._env['DATA_PORT'] = str(self._args.dataPort)
+		if 'dataPort' in self._args and self._args.dataPort is not None and 'DATA_PORT' not in self._env :
+			self._env['DATA_PORT'] = '8888'
+
 
 	def _build(self) :
 		'''Build the image. Required prior to run or dev commands.'''
@@ -268,6 +286,7 @@ class DIARCSpaceStation:
 
 		self._writeLines(self.docker_compose, docker_compose)
 		self._waitForYes()
+		self._dataServer(timestamp)
 		self._dockerCompose()
 
 	def _dockerCompose (self) :
@@ -281,7 +300,7 @@ class DIARCSpaceStation:
 	def _parseLog (self, line) :
 		'''Parse all lines from docker compose process to determine when ROS is started to start the Unity server'''
 		line = line.decode('ascii').strip()
-		self._log(line, False)
+		self._log(line, False, True)
 		
 		if not self.ros_started[0] and 'robot1-' in line and 'process[tilt_shadow_filter-' in line :
 			self.ros_started[0] = True
@@ -296,7 +315,7 @@ class DIARCSpaceStation:
 		'''Start the Unity server in a subprocess if in .env file'''
 		self.unity_started = True
 		if 'SERVER' in self._env :
-			self._log('STARTING UNITY')
+			self._log('STARTING UNITY SERVER')
 			cmd = [ self.unity_server_bin ]
 			global_dict['unity_logs'] = os.path.join(self._env['SERVER'], 'Space_Station_SMM_Server_Data/StreamingAssets/Output')
 			global_dict['unity_proc'] = subprocess.Popen(cmd, cwd=self._env['SERVER'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -475,8 +494,10 @@ class DIARCSpaceStation:
 			global_dict['diarc_ros_logs'] = timestamp
 			global_dict['output'] = self._args.output
 
-	def _log (self, line, tag = True) :
+	def _log (self, line, tag = True, remove_color = False) :
 		'''Write a log line with optional command name tagged in brackets. If output dir specified write log line to a file there'''
+		if remove_color :
+			line = self.ansi_escape.sub('', line)
 		if tag :
 			print(f'[{self._args.command.upper()}] {line}')
 		else : 
@@ -497,6 +518,14 @@ class DIARCSpaceStation:
 		else :
 			self._log('Cancelled')
 			exit()
+
+	def _dataServer (self, timestamp) :
+		'''Start the file upload data server for collecting data from Unity clients'''
+		cmd = ['python', './server.py', '-p', self._env['DATA_PORT'], '-t', timestamp]
+		if self._args.output is not None :
+			cmd += ['-o', self._args.output]
+		global_dict['data_proc'] = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		self._log(f'Started Unity client data collection server on port: {self._env["DATA_PORT"]}')
 
 def copyDir (src, dest) :
 	'''Copy one directory to another via cp command'''
@@ -521,6 +550,7 @@ def unityLogs (src, output) :
 	copyDir(os.path.join(src, dirs[0]), output)
 
 def lslFile (src, output, timestamp) :
+	'''Copy the LSL file to the output directory'''
 	dest = os.path.join(output, f'{timestamp}_lsl_data.xdf')
 	if os.path.isfile(src) :
 		shutil.copy2(src, dest)
@@ -538,16 +568,19 @@ def exitGracefully () :
 	if 'docker_proc' in global_dict :
 		global_dict['docker_proc'].kill()
 		print('Killed docker compose process')
+	if 'data_proc' in global_dict :
+		global_dict['data_proc'].kill()
+		print('Killed data server process')
 	if 'log_file' in global_dict :
 		global_dict['log_file'].close()
 		print('Closed log file')
-	if 'diarc_ros_logs' in global_dict :
+	if 'diarc_ros_logs' in global_dict and 'output' in global_dict :
 		copyLogs(global_dict['diarc_ros_logs'], global_dict['output'])
 		print('Copied DIARC and ROS logs')
-	if 'unity_logs' in global_dict :
+	if 'unity_logs' in global_dict and 'output' in global_dict :
 		unityLogs(global_dict['unity_logs'], global_dict['output'])
 		print('Copied Unity logs')
-	if 'lsl' in global_dict :
+	if 'lsl' in global_dict and 'diarc_ros_logs' in global_dict and 'output' in global_dict :
 		lslFile(global_dict['lsl'], global_dict['output'], global_dict['diarc_ros_logs'])
 
 if __name__ == '__main__':

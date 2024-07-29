@@ -18,6 +18,7 @@
             - './.env:/code/scripts/.env'
             - './.env:/code/diarc/.env'
             - '/tmp/.X11-unix:/tmp/.X11-unix:rw'
+            - '/etc/timezone:/etc/timezone:ro'
             - '/etc/localtime:/etc/localtime:ro'
             - '/tmp/.docker.xauth:/tmp/.docker.xauth'
             - './docker_scripts/start_code.sh:/code/scripts/start_code.sh'

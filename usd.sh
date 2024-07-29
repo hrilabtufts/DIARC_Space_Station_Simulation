@@ -1,5 +1,8 @@
 #!/bin/bash
 
+echo "Script deprecated. Use launch.py."
+exit 1
+
 help () {
 	echo "Usage: usd [command] <options>"
 	echo "Commands:"

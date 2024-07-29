@@ -36,6 +36,7 @@ dev.add_argument('-s', '--smm', default=None, action='store_true', help='Set the
 dev.add_argument('-n', '--noServer', default=False, action='store_true', help='Run without launching Unity server so it can be launched elsewhere')
 dev.add_argument('-o', '--output', default=None, type=str, help='Directory to save log files to. If it does not exist, it will be created.')
 dev.add_argument('-d', '--dataPort', default=8888, type=int, help='Port to run the data collection server on. Default (8888)')
+dev.add_argument('-c', '--clients', default=1, type=int, help='Number of clients expected to join. Default (1)')
 dev.add_argument('diarc', type=str, nargs='+')
 
 run = subparsers.add_parser('run', help='Run the simulation server(s) in production mode')
@@ -45,6 +46,7 @@ run.add_argument('-s', '--smm', default=None, action='store_true', help='Set the
 run.add_argument('-n', '--noServer', default=False, action='store_true', help='Run without launching Unity server so it can be launched elsewhere')
 run.add_argument('-o', '--output', default=None, type=str, help='Directory to save log files to. If it does not exist, it will be created.')
 run.add_argument('-d', '--dataPort', default=None, type=int, help='Port to run the data collection server on. Default (8888)')
+run.add_argument('-c', '--clients', default=1, type=int, help='Number of clients expected to join. Default (1)')
 
 stop = subparsers.add_parser('stop', help='Gracefully stop all docker containers')
 kill = subparsers.add_parser('kill', help='Kill all docker containers')
@@ -76,6 +78,8 @@ class DIARCSpaceStation:
 
 	unity_server_bin = './Space_Station_SMM_Server.x86_64'
 	unity_server_log = '.config/unity3d/HRI_Lab_Tufts_University/Space_Station_SMM_Server/Player.log'
+	unity_server_output = 'Space_Station_SMM_Server_Data/StreamingAssets/Output'
+	unity_server_config = 'Space_Station_SMM_Server_Data/StreamingAssets/server_settings.json'
 
 	required_keys = ['BIN' , 'UNITY_IP', 'DIARC_CONFIG', 'LLM_URL', 'LLM_PORT', 'SMM', 'NETWORK_PREFIX']
 	
@@ -83,10 +87,21 @@ class DIARCSpaceStation:
 	unity_port = 1755
 	network_start = 4
 	robots = 0
+	clients = 0
+
 	ros_started = []
+	diarc_started = []
+	diarc_connected = []
+	client_connected = []
+	lsl_stream_closed = []
+
 	unity_started = False
+	lab_recorder_started = False
+
 	write_to_log = False
 	log_file = None
+
+	has_lab_recorder = False
 
 	def __init__ (self, args) :
 		self._args = args
@@ -203,6 +218,7 @@ class DIARCSpaceStation:
 		self._logs(timestamp)
 		self._readEnv()
 		self._overrides()
+		self._checkLabRecorder()
 		self.unity_server_log = os.path.join(Path.home(), self.unity_server_log)
 		
 		robot_tmpl = './config/docker/docker-compose-robot-headless.yaml.tmpl'
@@ -211,6 +227,7 @@ class DIARCSpaceStation:
 
 		robots = int(self._env['ROBOTS'])
 		llm_port = int(self._env['LLM_PORT'])
+		clients = int(self._args.clients)
 		ros_port = self.ros_port
 		unity_port = self.unity_port
 		network = self.network_start
@@ -229,6 +246,16 @@ class DIARCSpaceStation:
 
 		for i in range(robots) :
 			self.ros_started.append(False)
+			self.diarc_started.append(False)
+			self.diarc_connected.append(False)
+
+		#server stream
+		self.lsl_stream_closed.append(False)
+
+		for i in range(clients) :
+			self.client_connected.append(False)
+			#client streams
+			self.lsl_stream_closed.append(False)
 
 		if self._args.gui :
 			self._log('WARN: GUI features not available in this version of the script.')
@@ -239,6 +266,7 @@ class DIARCSpaceStation:
 			#gui = True
 
 		self.robots = robots
+		self.clients = clients
 		
 		self._mkdir('./logs')
 		self._mkdir('./cache')
@@ -300,9 +328,9 @@ class DIARCSpaceStation:
 		cmd = self._env['BIN'] + ' up --remove-orphans'
 		global_dict['docker_proc'] = subprocess.Popen(cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 		for line in global_dict['docker_proc'].stdout :
-			self._parseLog(line)
+			self._parseDockerComposeLog(line)
 
-	def _parseLog (self, line) :
+	def _parseDockerComposeLog (self, line) :
 		'''Parse all lines from docker compose process to determine when ROS is started to start the Unity server'''
 		line = line.decode('ascii').strip()
 		self._log(line, False, True)
@@ -316,13 +344,25 @@ class DIARCSpaceStation:
 		if not self.unity_started and False not in self.ros_started :
 			self._unityServer()
 
+		if not self.diarc_started[0] and 'robot1-' in line and 'Task :config:launch' in line :
+			self.diarc_started[0] = True
+
+		if self.robots == 2 and not self.diarc_started[1] and 'robot2-' in line and 'Task :config:launch' in line :
+			self.diarc_started[1] = True
+
+		if not self.diarc_connected[0] and 'Agent robot1 received message action = connected' in line :
+			self.diarc_connected[0] = True
+
+		if self.robots == 2 and not self.diarc_connected[1] and 'Agent robot2 received message action = connected' in line :
+			self.diarc_connected[1] = True
+
 	def _unityServer (self) :
 		'''Start the Unity server in a subprocess if in .env file'''
 		self.unity_started = True
 		if 'SERVER' in self._env :
 			self._log('STARTING UNITY SERVER')
 			cmd = [ self.unity_server_bin ]
-			global_dict['unity_logs'] = os.path.join(self._env['SERVER'], 'Space_Station_SMM_Server_Data/StreamingAssets/Output')
+			global_dict['unity_logs'] = os.path.join(self._env['SERVER'], self.unity_server_output)
 			global_dict['unity_proc'] = subprocess.Popen(cmd, cwd=self._env['SERVER'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 			self._unityServerLog()
 		else :
@@ -339,20 +379,33 @@ class DIARCSpaceStation:
 			cmd = ['tail', '-F', self.unity_server_log]
 			global_dict['unity_server_log'] = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 			for line in global_dict['unity_server_log'].stdout :
-				line = line.decode('ascii').strip()
-				if line == '' :
-					continue
-				if line.startswith('(Filename: ') :
-					continue
-				if 'The referenced script on this Behaviour (Game Object' in line :
-					continue
-				self._log(line, True, False)
+				self._parseUnityServerLog(line)
 		else :
 			self._log(f'Cannot find Unity server log: {self.unity_server_log}')
 
 	def _unityServerLog(self) :
 		'''Wrapper function for launching the Unity server log thread -- from the Unity process, not the data streams'''
 		Thread(target=self._unityServerLogThread).start()
+
+	def _parseUnityServerLog (self, line) :
+		line = line.decode('ascii').strip()
+		if line == '' :
+			return
+		if line.startswith('(Filename: ') :
+			return
+		if 'The referenced script on this Behaviour (Game Object' in line :
+			return
+		
+		self._log(line, True, False)
+		
+		if not self.client_connected[0] and 'SMM Player 1 joined server' in line :
+			self.client_connected[0] = True
+
+		if self.clients == 2 and not self.client_connected[0] and 'SMM Player 2 joined server' in line :
+			self.client_connected[1] = True
+
+		if self.has_lab_recorder and not self.lab_recorder_started and False not in self.client_connected : 
+			self._labRecorder()
 
 
 	def _additionalServices (self) :
@@ -443,6 +496,7 @@ class DIARCSpaceStation:
 
 		xauth_list_cmd = "xauth nlist :0 | tail -n 1 | sed -e 's/^..../ffff/'"
 		xauth_list = subprocess.check_output(xauth_list_cmd)
+		xauth_list = xauth_list.decode('ascii').strip()
 
 		if not os.path.isfile(xauth_tmp) :
 			if not xauth_list.strip() == '' :
@@ -561,6 +615,52 @@ class DIARCSpaceStation:
 		'''Wrapper method for launching the data collection server thread'''
 		Thread(target=self._dataServerThread, args=[timestamp]).start()
 
+	def _checkLabRecorder (self) :
+		'''Perform which check for installed LabRecorder binary'''
+		cmd = ['which', 'LabRecorder']
+		output = subprocess.check_output(cmd)
+		output = output.decode('ascii').strip()
+		if output != '' :
+			self.has_lab_recorder = True
+			self._log(f'LabRecorder installed: {output}')
+		else :
+			self._log(f'WARN: LabRecorder is not installed, will not launch automatically')
+
+	def _labRecorderThread (self) :
+		'''Start the LabRecorder application'''
+		cmd = ['LabRecorder']
+		global_dict['lab_recorder_closed'] = False
+		global_dict['lab_recorder'] = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		self._log(f'Started LabRecorder')
+		for line in global_dict['lab_recorder'].stdout :
+			self._parseLabRecorderLog(line)
+
+	def _labRecorder (self) :
+		'''Wrapper method for launching the LabRecorder application'''
+		self.lab_recorder_started = True
+		Thread(target=self._labRecorderThread).start()
+
+	def _parseLabRecorderLog (self, line) :
+		line = line.decode('ascii').strip()
+		self._log(line, True, False)
+
+		if not self.lsl_stream_closed[0] and 'Wrote footer for stream ' in line  and 'Server_Timestamp' in line:
+			self.lsl_stream_closed[0] = True
+
+		if not self.lsl_stream_closed[1] and 'Wrote footer for stream ' in line  and 'Player_1_Client_Timestamp' in line:
+			self.lsl_stream_closed[1] = True
+
+		if self.clients == 2 and not self.lsl_stream_closed[2] and 'Wrote footer for stream ' in line  and 'Player_2_Client_Timestamp' in line:
+			self.lsl_stream_closed[2] = True
+
+		if not global_dict['lab_recorder_closed'] and False not in self.lsl_stream_closed and 'Closing the file' in line :
+			global_dict['lab_recorder_closed'] = True
+			self._log('LabRecorder streams all closed')
+
+def waitForEnter () :
+	'''Pause the process to wait for user confirmation'''
+	val = input('Your LabRecorder session does not appear to be stopped. Hit enter after stopping: ')
+
 def copyDir (src, dest) :
 	'''Copy one directory to another via cp command'''
 	cmd = ['cp', '-r', src, dest]
@@ -595,27 +695,43 @@ def lslFile (src, output, timestamp) :
 def exitGracefully () :
 	'''Catch the CTRL-c SIGINT and run all cleanup jobs to shut down subprocesses and copy log files into output directory'''
 	print('Exiting...')
+
+	if 'lab_recorder' in global_dict and not global_dict['lab_recorder_closed'] :
+		waitForEnter()
+
 	#print(global_dict)
 	if 'unity_proc' in global_dict :
 		global_dict['unity_proc'].kill()
 		print('Killed Unity server')
+
 	if 'unity_server_log' in global_dict :
 		global_dict['unity_server_log'].kill()
 		print('Killed Unity server log tail process')
+
 	if 'docker_proc' in global_dict :
 		global_dict['docker_proc'].kill()
 		print('Killed docker compose process')
+
 	if 'data_proc' in global_dict :
 		global_dict['data_proc'].kill()
 		print('Killed data server process')
+
+	if 'lab_recorder' in global_dict :
+		global_dict['lab_recorder'].kill()
+		print('Killed LabRecorder process')
+
 	if 'diarc_ros_logs' in global_dict and 'output' in global_dict :
 		copyLogs(global_dict['diarc_ros_logs'], global_dict['output'])
 		print('Copied DIARC and ROS logs')
+
 	if 'unity_logs' in global_dict and 'output' in global_dict :
 		unityLogs(global_dict['unity_logs'], global_dict['output'])
 		print('Copied Unity logs')
+
 	if 'lsl' in global_dict and 'diarc_ros_logs' in global_dict and 'output' in global_dict :
 		lslFile(global_dict['lsl'], global_dict['output'], global_dict['diarc_ros_logs'])
+		print('Copied LSL data')
+
 	if 'log_file' in global_dict :
 		global_dict['log_file'].close()
 		print('Closed launch.py log file')

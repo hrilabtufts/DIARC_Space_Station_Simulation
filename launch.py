@@ -3,6 +3,8 @@
 from argparse import ArgumentParser
 from datetime import datetime
 from threading import Thread
+from pathlib import Path
+import time
 import os
 import subprocess
 import tempfile
@@ -73,6 +75,7 @@ class DIARCSpaceStation:
 	docker_compose_robot_headless_tmpl = './config/docker/docker-compose-robot-headless.yaml.tmpl'
 
 	unity_server_bin = './Space_Station_SMM_Server.x86_64'
+	unity_server_log = '.config/unity3d/HRI_Lab_Tufts_University/Space_Station_SMM_Server/Player.log'
 
 	required_keys = ['BIN' , 'UNITY_IP', 'DIARC_CONFIG', 'LLM_URL', 'LLM_PORT', 'SMM', 'NETWORK_PREFIX']
 	
@@ -200,6 +203,7 @@ class DIARCSpaceStation:
 		self._logs(timestamp)
 		self._readEnv()
 		self._overrides()
+		self.unity_server_log = os.path.join(Path.home(), self.unity_server_log)
 		
 		robot_tmpl = './config/docker/docker-compose-robot-headless.yaml.tmpl'
 		if dev :
@@ -320,6 +324,7 @@ class DIARCSpaceStation:
 			cmd = [ self.unity_server_bin ]
 			global_dict['unity_logs'] = os.path.join(self._env['SERVER'], 'Space_Station_SMM_Server_Data/StreamingAssets/Output')
 			global_dict['unity_proc'] = subprocess.Popen(cmd, cwd=self._env['SERVER'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+			self._unityServerLog()
 		else :
 			self._log(" *********************************************")
 			self._log(" *                                           *")
@@ -328,6 +333,27 @@ class DIARCSpaceStation:
 			self._log(" *                                           *")
 			self._log(" *                                           *")
 			self._log(" *********************************************")
+
+	def _unityServerLogThread (self) :
+		if os.path.isfile(self.unity_server_log) :
+			cmd = ['tail', '-F', self.unity_server_log]
+			global_dict['unity_server_log'] = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+			for line in global_dict['unity_server_log'].stdout :
+				line = line.decode('ascii').strip()
+				if line == '' :
+					continue
+				if line.startswith('(Filename: ') :
+					continue
+				if 'The referenced script on this Behaviour (Game Object' in line :
+					continue
+				self._log(line, True, False)
+		else :
+			self._log(f'Cannot find Unity server log: {self.unity_server_log}')
+
+	def _unityServerLog(self) :
+		'''Wrapper function for launching the Unity server log thread -- from the Unity process, not the data streams'''
+		Thread(target=self._unityServerLogThread).start()
+
 
 	def _additionalServices (self) :
 		'''Generate the docker compose stanza for Kaldi and OpenTTS'''
@@ -532,6 +558,7 @@ class DIARCSpaceStation:
 			self._log(line, True, True)
 
 	def _dataServer (self, timestamp) : 
+		'''Wrapper method for launching the data collection server thread'''
 		Thread(target=self._dataServerThread, args=[timestamp]).start()
 
 def copyDir (src, dest) :
@@ -572,6 +599,9 @@ def exitGracefully () :
 	if 'unity_proc' in global_dict :
 		global_dict['unity_proc'].kill()
 		print('Killed Unity server')
+	if 'unity_server_log' in global_dict :
+		global_dict['unity_server_log'].kill()
+		print('Killed Unity server log tail process')
 	if 'docker_proc' in global_dict :
 		global_dict['docker_proc'].kill()
 		print('Killed docker compose process')
@@ -588,7 +618,7 @@ def exitGracefully () :
 		lslFile(global_dict['lsl'], global_dict['output'], global_dict['diarc_ros_logs'])
 	if 'log_file' in global_dict :
 		global_dict['log_file'].close()
-		print('Closed log file')
+		print('Closed launch.py log file')
 
 if __name__ == '__main__':
 	try:

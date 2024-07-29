@@ -16,6 +16,14 @@ parser.add_argument('-t', '--timestamp', default='', help='Timestamp to use for 
 parser.add_argument('-o', '--output', default=None, help='Output directory')
 args = parser.parse_args()
 
+def mkdir (path) :
+	'''Make a directory if it does not exist'''
+	if not os.path.exists(path) :
+		os.makedirs(path)
+		print(f'Created directory {path}')
+	else :
+		print(f'Directory {path} exists')
+
 server = Flask('cdc_server')
 
 @server.route('/')
@@ -23,13 +31,15 @@ def index():
 	return 'OK'
 
 @server.route('/<datadir>', methods=['POST'])
-def upload_file():
-	datadir = request.view_args['datadir']
-	uploaded_file = request.files['file']
+def upload_file(datadir):
+	for key in request.files.keys() :
+		uploaded_file = request.files[key]
+		break
 	if uploaded_file.filename != '' and args.output is not None :
-		print(f'Uploaded file {uploaded_file.filename}')
-		uploaded_file.save(os.path.join(args.output, uploaded_file.filename))
-	return redirect(url_for('index'))
+		mkdir(os.path.join(args.output, datadir))
+		uploaded_file.save(os.path.join(args.output, datadir, uploaded_file.filename))
+		print(f'Uploaded file {datadir}/{uploaded_file.filename}')
+	return 'OK'
 
 if __name__ == '__main__' :
 

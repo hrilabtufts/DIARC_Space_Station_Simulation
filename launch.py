@@ -2,6 +2,7 @@
 
 from argparse import ArgumentParser
 from datetime import datetime
+from threading import Thread
 import os
 import subprocess
 import tempfile
@@ -519,13 +520,19 @@ class DIARCSpaceStation:
 			self._log('Cancelled')
 			exit()
 
-	def _dataServer (self, timestamp) :
+	def _dataServerThread (self, timestamp) :
 		'''Start the file upload data server for collecting data from Unity clients'''
 		cmd = ['python', './server.py', '-p', self._env['DATA_PORT'], '-t', timestamp]
 		if self._args.output is not None :
 			cmd += ['-o', self._args.output]
-		global_dict['data_proc'] = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		global_dict['data_proc'] = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 		self._log(f'Started Unity client data collection server on port: {self._env["DATA_PORT"]}')
+		for line in global_dict['data_proc'].stdout :
+			line = line.decode('ascii').strip()
+			self._log(line, True, True)
+
+	def _dataServer (self, timestamp) : 
+		Thread(target=self._dataServerThread, args=[timestamp]).start()
 
 def copyDir (src, dest) :
 	'''Copy one directory to another via cp command'''
@@ -571,9 +578,6 @@ def exitGracefully () :
 	if 'data_proc' in global_dict :
 		global_dict['data_proc'].kill()
 		print('Killed data server process')
-	if 'log_file' in global_dict :
-		global_dict['log_file'].close()
-		print('Closed log file')
 	if 'diarc_ros_logs' in global_dict and 'output' in global_dict :
 		copyLogs(global_dict['diarc_ros_logs'], global_dict['output'])
 		print('Copied DIARC and ROS logs')
@@ -582,6 +586,9 @@ def exitGracefully () :
 		print('Copied Unity logs')
 	if 'lsl' in global_dict and 'diarc_ros_logs' in global_dict and 'output' in global_dict :
 		lslFile(global_dict['lsl'], global_dict['output'], global_dict['diarc_ros_logs'])
+	if 'log_file' in global_dict :
+		global_dict['log_file'].close()
+		print('Closed log file')
 
 if __name__ == '__main__':
 	try:

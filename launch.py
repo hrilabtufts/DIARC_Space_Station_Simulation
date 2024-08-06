@@ -6,14 +6,21 @@ from threading import Thread
 from pathlib import Path
 import time
 import os
+import platform
 import subprocess
 import tempfile
 import signal
 import sys
 import shutil
 import re
+import json
+import socket
 
 has_pyxdf = False
+
+if platform.system() != 'Linux' :
+	print('ERROR: This script is intended for Linux only. To attempt to use this script on another platform remove this check.')
+	exit(1)
 
 try :
 	import pyxdf
@@ -30,23 +37,27 @@ build = subparsers.add_parser('build', help='Build the DIARC Space Station docke
 build.add_argument('--no-cache', dest='cache', default=True, action='store_false', help='Rebuild image without using cache')
 
 dev = subparsers.add_parser('dev', help='Run the simulation servers in dev mode')
-dev.add_argument('-g', '--gui', default=False, action='store_true', help='Enable GUI settings in DIARC and ROS')
+dev.add_argument('-g', '--gui', default=False, action='store_true', help=' (DEPRECATED) Enable GUI settings in DIARC and ROS')
 dev.add_argument('-r', '--robots', type=int, default=None, help='Set the number of robots to spawn in the trial')
 dev.add_argument('-s', '--smm', default=None, action='store_true', help='Set the number of robots to spawn in the trial')
 dev.add_argument('-n', '--noServer', default=False, action='store_true', help='Run without launching Unity server so it can be launched elsewhere')
 dev.add_argument('-o', '--output', default=None, type=str, help='Directory to save log files to. If it does not exist, it will be created.')
 dev.add_argument('-d', '--dataPort', default=8888, type=int, help='Port to run the data collection server on. Default (8888)')
 dev.add_argument('-c', '--clients', default=1, type=int, help='Number of clients expected to join. Default (1)')
+dev.add_argument('-S', '--settings', default=None, type=str, help='Path to server_settings.json file to configure the experiment')
+dev.add_argument('-t', '--trial', default=1, type=int, help='Start at a different trial than the first one')
 dev.add_argument('diarc', type=str, nargs='+')
 
 run = subparsers.add_parser('run', help='Run the simulation server(s) in production mode')
-run.add_argument('-g', '--gui', default=False, action='store_true', help='Enable GUI settings in DIARC and ROS')
+run.add_argument('-g', '--gui', default=False, action='store_true', help='(DEPRECATED) Enable GUI settings in DIARC and ROS')
 run.add_argument('-r', '--robots', type=int, default=None, help='Set the number of robots to spawn in the trial')
 run.add_argument('-s', '--smm', default=None, action='store_true', help='Set the number of robots to spawn in the trial')
 run.add_argument('-n', '--noServer', default=False, action='store_true', help='Run without launching Unity server so it can be launched elsewhere')
 run.add_argument('-o', '--output', default=None, type=str, help='Directory to save log files to. If it does not exist, it will be created.')
 run.add_argument('-d', '--dataPort', default=None, type=int, help='Port to run the data collection server on. Default (8888)')
 run.add_argument('-c', '--clients', default=1, type=int, help='Number of clients expected to join. Default (1)')
+run.add_argument('-S', '--settings', default=None, type=str, help='Path to server_settings.json file to configure the experiment')
+run.add_argument('-t', '--trial', default=1, type=int, help='Start at a different trial than the first one')
 
 stop = subparsers.add_parser('stop', help='Gracefully stop all docker containers')
 kill = subparsers.add_parser('kill', help='Kill all docker containers')
@@ -81,7 +92,7 @@ class DIARCSpaceStation:
 	unity_server_output = 'Space_Station_SMM_Server_Data/StreamingAssets/Output'
 	unity_server_config = 'Space_Station_SMM_Server_Data/StreamingAssets/server_settings.json'
 
-	required_keys = ['BIN' , 'UNITY_IP', 'DIARC_CONFIG', 'LLM_URL', 'LLM_PORT', 'SMM', 'NETWORK_PREFIX']
+	required_keys = ['BIN' , 'UNITY_IP', 'DIARC_CONFIG', 'LLM_URL', 'LLM_PORT', 'SMM', 'NETWORK_PREFIX', 'ROBOTS', 'CLIENTS']
 	
 	ros_port = 9090
 	unity_port = 1755
@@ -152,9 +163,13 @@ class DIARCSpaceStation:
 
 	def _overrides(self) :
 		'''Override ENV values with commandline settings'''
-		if 'robots' in self._args and self._args.robots is not None :
+		if 'robots' in self._args and self._args.robots is not None and self._args.robots != int(self._env['ROBOTS']):
 			self._log(f'Overriding ENV value ROBOTS ({self._env["ROBOTS"]}) with {self._args.robots}')
 			self._env['ROBOTS'] = str(self._args.robots)
+
+		if 'clients' in self._args and self._args.clients is not None and self._args.clients != int(self._env['CLIENTS']):
+			self._log(f'Overriding ENV value CLIENTS ({self._env["CLIENTS"]}) with {self._args.clients}')
+			self._env['CLIENTS'] = str(self._args.clients)
 
 		if 'smm' in self._args and self._args.smm is not None :
 			self._log(f'Overriding ENV value SMM ({self._env["SMM"]}) with {self._args.smm}')
@@ -171,6 +186,13 @@ class DIARCSpaceStation:
 			self._env['DATA_PORT'] = str(self._args.dataPort)
 		if 'dataPort' in self._args and self._args.dataPort is not None and 'DATA_PORT' not in self._env :
 			self._env['DATA_PORT'] = '8888'
+
+		if 'SETTINGS' not in self._env :
+			self._env['SETTINGS'] = os.path.join(self._env['SERVER'], self.unity_server_config)
+
+		if 'settings' in self._args and self._args.settings is not None :
+			self._log(f'Overriding ENV value SETTINGS ({self._env["SETTINGS"]}) with {self._args.settings}')
+			self._env['SETTINGS'] = self._args.settings
 
 
 	def _build(self) :
@@ -226,8 +248,8 @@ class DIARCSpaceStation:
 			robot_tmpl = './config/docker/docker-compose-robot-dev-headless.yaml.tmpl'
 
 		robots = int(self._env['ROBOTS'])
+		clients = int(self._env['CLIENTS'])
 		llm_port = int(self._env['LLM_PORT'])
-		clients = int(self._args.clients)
 		ros_port = self.ros_port
 		unity_port = self.unity_port
 		network = self.network_start
@@ -239,6 +261,10 @@ class DIARCSpaceStation:
 
 		if dev and len(self._args.diarc) != robots :
 			self._log(f'ERROR: Robot count ({robots}) != number of DIARC directories in command ({len(self._args.diarc)})')
+			exit(1)
+
+		if not os.path.isfile(self._env['SETTINGS']) :
+			self._log(f'ERROR: Server settings JSON file {self._env["SETTINGS"]} does not exist')
 			exit(1)
 
 		if self.write_to_log and 'LSL' in self._env :
@@ -258,7 +284,7 @@ class DIARCSpaceStation:
 			self.lsl_stream_closed.append(False)
 
 		if self._args.gui :
-			self._log('WARN: GUI features not available in this version of the script.')
+			self._log('WARNING: GUI features not available in this version of the script.')
 			#self._setupX()
 			#robot_tmpl = './config/docker/docker-compose-robot.yaml.tmpl'
 			#if dev :
@@ -317,10 +343,60 @@ class DIARCSpaceStation:
 			self._log(line)
 		self._line()
 
+		self._serverSettings(robots)
 		self._writeLines(self.docker_compose, docker_compose)
 		self._waitForYes()
 		self._dataServer(timestamp)
 		self._dockerCompose()
+
+	def _serverSettings (self, robots) :
+		'''Manage the server_settings.json by providing an alternate one via the .env file or CLI arguments'''
+		if 'SERVER' in self._env :
+			if self._env['SETTINGS'] == os.path.join(self._env['SERVER'], self.unity_server_config) :
+				self._log(f'Selected server settings already located at {self._env["SETTINGS"]}')
+				return
+			
+			with open(self._env['SETTINGS'], 'r') as file:
+				server_settings = json.load(file)
+
+			if self._args.trial > 1 and self._args.trial > len(server_settings['trials']) :
+				self._log(f'ERROR: Cannot start at trial {self._args.trial} because server settings only has {len(server_settings["trials"])} trials')
+				exit(1)
+
+			counted_robots = 0
+			for d in server_settings['DIARC'] :
+				counted_robots += len(d['ROS'])
+
+			if robots > counted_robots :
+				self._log(f'ERROR: Robot count ({robots}) is higher than number of robots in server settings ({counted_robots})')
+				exit(1)
+
+			original = os.path.join(self._env['SERVER'], self.unity_server_config)
+			dest_dir = os.path.dirname(original)
+			dest = os.path.join(dest_dir, 'server_settings.json.bak')
+			
+			if os.path.isfile(original) :
+				shutil.copy2(original, dest)
+				global_dict['server_settings'] = dest
+			else :
+				self._log(f'No server_settings.json in server directory, copying from {self._env["SETTINGS"]}')
+				if self._args.trial > 1 :
+					shutil.copy2(self._env['SETTINGS'], dest)
+					global_dict['server_settings'] = dest
+
+			if self._args.trial > 1 :
+				self._log(f'WARNING: Starting on trial {self._args.trial}')
+				server_settings["trials"] = server_settings["trials"][self._args.trial-1:len(server_settings['trials'])]
+
+			self._log(f'Using server settings file: {self._env["SETTINGS"]}')
+			self._log(f'Name: {server_settings["name"]}')
+			self._log(f'Room: {server_settings["room"]}')
+			self._log(f'Robots: {counted_robots}')
+			self._log(f'Trials: {len(server_settings["trials"])}')
+
+			with open(original, 'w', encoding='utf-8') as file:
+				json.dump(server_settings, file, ensure_ascii=False, indent=4, separators=(',', ': '))
+
 
 	def _dockerCompose (self) :
 		'''Start the docker compose process and store the subprocess in the global dict'''
@@ -362,6 +438,7 @@ class DIARCSpaceStation:
 		if 'SERVER' in self._env :
 			self._log('STARTING UNITY SERVER')
 			cmd = [ self.unity_server_bin ]
+			print(cmd)
 			global_dict['unity_logs'] = os.path.join(self._env['SERVER'], self.unity_server_output)
 			global_dict['unity_proc'] = subprocess.Popen(cmd, cwd=self._env['SERVER'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 			self._unityServerLog()
@@ -624,7 +701,7 @@ class DIARCSpaceStation:
 			self.has_lab_recorder = True
 			self._log(f'LabRecorder installed: {output}')
 		else :
-			self._log(f'WARN: LabRecorder is not installed, will not launch automatically')
+			self._log(f'WARNING: LabRecorder is not installed, will not launch automatically')
 
 	def _labRecorderThread (self) :
 		'''Start the LabRecorder application'''
@@ -731,6 +808,10 @@ def exitGracefully () :
 	if 'lsl' in global_dict and 'diarc_ros_logs' in global_dict and 'output' in global_dict :
 		lslFile(global_dict['lsl'], global_dict['output'], global_dict['diarc_ros_logs'])
 		print('Copied LSL data')
+
+	if 'server_settings' in global_dict :
+		shutil.copy2(global_dict['server_settings'], global_dict['server_settings'].replace('server_settings.json.bak', 'server_settings.json'))
+		print('Restored original server_settings.json')
 
 	if 'log_file' in global_dict :
 		global_dict['log_file'].close()

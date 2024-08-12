@@ -267,9 +267,6 @@ class DIARCSpaceStation:
 			self._log(f'ERROR: Server settings JSON file {self._env["SETTINGS"]} does not exist')
 			exit(1)
 
-		if self.write_to_log and 'LSL' in self._env :
-			global_dict['lsl'] = self._env['LSL']
-
 		for i in range(robots) :
 			self.ros_started.append(False)
 			self.diarc_started.append(False)
@@ -354,8 +351,7 @@ class DIARCSpaceStation:
 		if 'SERVER' in self._env :
 			if self._env['SETTINGS'] == os.path.join(self._env['SERVER'], self.unity_server_config) :
 				self._log(f'Selected server settings already located at {self._env["SETTINGS"]}')
-				return
-			
+
 			with open(self._env['SETTINGS'], 'r') as file:
 				server_settings = json.load(file)
 
@@ -481,7 +477,8 @@ class DIARCSpaceStation:
 		if self.clients == 2 and not self.client_connected[0] and 'SMM Player 2 joined server' in line :
 			self.client_connected[1] = True
 
-		if self.has_lab_recorder and not self.lab_recorder_started and False not in self.client_connected : 
+		if self.has_lab_recorder and not self.lab_recorder_started and False not in self.client_connected :
+			global_dict['lsl'] = self._env['LSL']
 			self._labRecorder()
 
 

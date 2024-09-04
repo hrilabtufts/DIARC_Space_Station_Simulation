@@ -46,6 +46,9 @@ dev.add_argument('-d', '--dataPort', default=8888, type=int, help='Port to run t
 dev.add_argument('-c', '--clients', default=1, type=int, help='Number of clients expected to join. Default (1)')
 dev.add_argument('-S', '--settings', default=None, type=str, help='Path to server_settings.json file to configure the experiment')
 dev.add_argument('-t', '--trial', default=1, type=int, help='Start at a different trial than the first one')
+dev.add_argument('-C', '--config', default=None, type=str, help='Class path of the DIARC configuration to use when launching a robot')
+dev.add_argument('-D', '--configSpoke', default=None, type=str, help='Class path of the DIARC configuration to use when launching a robot as a spoke')
+dev.add_argument('-e', '--extraArgs', default=None, type=str, help='Extra arguments supplied to DIARC configuration on launch')
 dev.add_argument('diarc', type=str, nargs='+')
 
 run = subparsers.add_parser('run', help='Run the simulation server(s) in production mode')
@@ -58,6 +61,9 @@ run.add_argument('-d', '--dataPort', default=None, type=int, help='Port to run t
 run.add_argument('-c', '--clients', default=1, type=int, help='Number of clients expected to join. Default (1)')
 run.add_argument('-S', '--settings', default=None, type=str, help='Path to server_settings.json file to configure the experiment')
 run.add_argument('-t', '--trial', default=1, type=int, help='Start at a different trial than the first one')
+run.add_argument('-C', '--config', default=None, type=str, help='Class path of the DIARC configuration to use when launching a robot')
+run.add_argument('-D', '--configSpoke', default=None, type=str, help='Class path of the DIARC configuration to use when launching a robot as a spoke')
+run.add_argument('-e', '--extraArgs', default=None, type=str, help='Extra arguments supplied to DIARC configuration on launch')
 
 stop = subparsers.add_parser('stop', help='Gracefully stop all docker containers')
 kill = subparsers.add_parser('kill', help='Kill all docker containers')
@@ -173,7 +179,7 @@ class DIARCSpaceStation:
 
 		if 'smm' in self._args and self._args.smm is not None :
 			self._log(f'Overriding ENV value SMM ({self._env["SMM"]}) with {self._args.smm}')
-			self._env['SMM'] = self._args.smm
+			self._env['SMM'] = str(self._args.smm)
 
 		if 'noServer' in self._args and self._args.noServer :
 			if 'SERVER' in self._env :
@@ -194,6 +200,22 @@ class DIARCSpaceStation:
 			self._log(f'Overriding ENV value SETTINGS ({self._env["SETTINGS"]}) with {self._args.settings}')
 			self._env['SETTINGS'] = self._args.settings
 
+		if 'config' in self._args and self._args.config is not None :
+			self._log(f'Overriding ENV value DIARC_CONFIG ({self._env["DIARC_CONFIG"]}) with {self._args.config}')
+			self._env['DIARC_CONFIG'] = self._args.config
+
+		if 'configSpoke' in self._args and self._args.configSpoke is not None :
+			if self._env['SMM'] != 'True':
+				self._log(f'Cannot launch a spoke config if not in shared mental model mode')
+				exit(2)
+			if int(self._env['ROBOTS']) < 2 :
+				self._log(f'Cannot launch a spoke config if not launching more than one robot')
+				exit(3)
+			self._env['DIARC_CONFIG_SPOKE'] = self._args.configSpoke
+
+		if 'extraArgs' in self._args and self._args.extraArgs is not None:
+			self._log(f'Overriding ENV value EXTRA_ARGS ({self._env["EXTRA_ARGS"]}) with {self._args.extraArgs}')
+			self._env['EXTRA_ARGS'] = self._args.extraArgs
 
 	def _build(self) :
 		'''Build the image. Required prior to run or dev commands.'''
@@ -352,6 +374,18 @@ class DIARCSpaceStation:
 		envFile = '.env'
 		tmp_env = self._mktemp()
 		env = self._readLines(envFile)
+		for index, value in enumerate(env):
+			for key, value in self._env.items():
+				if env[index].startswith(f'{key}=') and env[index].lower() != f'{key}={value}'.lower() and env[index].lower() != f'{key}="{value}"'.lower() :
+					self._log(f'Overwriting {key} with {value}')
+					if value == 'False' :
+						value = 'false'
+					if value == 'True' :
+						value = 'true'
+					if '"' in env[index] :
+						env[index] = f'{key}="{value}"'
+					else:
+						env[index] = f'{key}={value}'
 		self._writeLines(tmp_env, env)
 		return tmp_env
 

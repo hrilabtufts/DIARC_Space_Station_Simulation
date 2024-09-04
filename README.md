@@ -179,7 +179,8 @@ sudo python launch.py build
 #### run
 
 ```
-usage: python launch.py run [-h] [-g] [-r ROBOTS] [-s] [-n] [-o OUTPUT] [-d DATAPORT] [-c CLIENTS] [-S SETTINGS] [-t TRIAL]
+usage: python launch.py run [-h] [-g] [-r ROBOTS] [-s] [-n] [-o OUTPUT] [-d DATAPORT] [-c CLIENTS] [-S SETTINGS]
+                            [-t TRIAL] [-C CONFIG] [-D CONFIGSPOKE] [-e EXTRAARGS]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -198,6 +199,12 @@ optional arguments:
                         Path to server_settings.json file to configure the experiment
   -t TRIAL, --trial TRIAL
                         Start at a different trial than the first one
+  -C CONFIG, --config CONFIG
+                        Class path of the DIARC configuration to use when launching a robot
+  -D CONFIGSPOKE, --configSpoke CONFIGSPOKE
+                        Class path of the DIARC configuration to use when launching a robot as a spoke
+  -e EXTRAARGS, --extraArgs EXTRAARGS
+                        Extra arguments supplied to DIARC configuration on launch
 
 ```
 
@@ -235,7 +242,9 @@ python launch.py run -r 1 -o ~/subject_001_data
 #### dev
 
 ```
-usage: python launch.py dev [-h] [-g] [-r ROBOTS] [-s] [-n] [-o OUTPUT] [-d DATAPORT] [-c CLIENTS] [-S SETTINGS] [-t TRIAL] diarc [diarc ...]
+usage: python launch.py dev [-h] [-g] [-r ROBOTS] [-s] [-n] [-o OUTPUT] [-d DATAPORT] [-c CLIENTS] [-S SETTINGS]
+                            [-t TRIAL] [-C CONFIG] [-D CONFIGSPOKE] [-e EXTRAARGS]
+                            diarc [diarc ...]
 
 positional arguments:
   diarc
@@ -257,6 +266,13 @@ optional arguments:
                         Path to server_settings.json file to configure the experiment
   -t TRIAL, --trial TRIAL
                         Start at a different trial than the first one
+  -C CONFIG, --config CONFIG
+                        Class path of the DIARC configuration to use when launching a robot
+  -D CONFIGSPOKE, --configSpoke CONFIGSPOKE
+                        Class path of the DIARC configuration to use when launching a robot as a spoke
+  -e EXTRAARGS, --extraArgs EXTRAARGS
+                        Extra arguments supplied to DIARC configuration on launch
+
 ```
 
 Run DIARC in debug mode and use a development repository which can be edited locally.

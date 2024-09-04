@@ -299,6 +299,8 @@ class DIARCSpaceStation:
 		additional_services = self._additionalServices()
 		docker_compose += additional_services
 
+		tmp_env = self._tmpEnv()
+
 		self._log(f'Generating config for robot(s) {robots}')
 
 		for i in range(robots) :
@@ -323,7 +325,7 @@ class DIARCSpaceStation:
 			self._line()
 			self._writeLines(ros_tmp, ros)
 
-			robot = self._robot(dev, gui, robot_name, timestamp, ros_port, ros_tmp, diarc, robot_ip, trade_properties_tmp, unity_port, gradle_properties_tmp, llm_url)
+			robot = self._robot(dev, gui, robot_name, timestamp, ros_port, ros_tmp, diarc, robot_ip, trade_properties_tmp, unity_port, gradle_properties_tmp, llm_url, tmp_env)
 
 			docker_compose += robot
 
@@ -345,6 +347,13 @@ class DIARCSpaceStation:
 		self._waitForYes()
 		self._dataServer(timestamp)
 		self._dockerCompose()
+
+	def _tmpEnv (self) :
+		envFile = '.env'
+		tmp_env = self._mktemp()
+		env = self._readLines(envFile)
+		self._writeLines(tmp_env, env)
+		return tmp_env
 
 	def _serverSettings (self, robots) :
 		'''Manage the server_settings.json by providing an alternate one via the .env file or CLI arguments'''
@@ -529,7 +538,7 @@ class DIARCSpaceStation:
 		}
 		return self._replaceLines(ros, ros_map)
 
-	def _robot (self, dev, gui, robot_name, timestamp, ros_port, ros_tmp, diarc, robot_ip, trade_properties_tmp, unity_port, gradle_properties_tmp, llm_url) :
+	def _robot (self, dev, gui, robot_name, timestamp, ros_port, ros_tmp, diarc, robot_ip, trade_properties_tmp, unity_port, gradle_properties_tmp, llm_url, tmp_env) :
 		'''Generate the docker compose robot stanza(s)'''
 		tmpl = self.docker_compose_robot_tmpl
 		if not dev and gui :
@@ -550,7 +559,8 @@ class DIARCSpaceStation:
 			'TRADE_PROPERTIES' : trade_properties_tmp,
 			'UNITYPORT' : str(unity_port),
 			'GRADLE_PROPERTIES' : gradle_properties_tmp,
- 			'LLMURL' : llm_url
+ 			'LLMURL' : llm_url,
+ 			'TMPENV' : tmp_env
 		}
 
 		return self._replaceLines(docker_compose_entry, docker_compose_map)

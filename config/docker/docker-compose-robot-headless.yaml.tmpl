@@ -10,8 +10,8 @@
             - UNITY_PORT=UNITYPORT
             - LLM=LLMURL
         volumes:
-            - './.env:/code/scripts/.env'
-            - './.env:/code/diarc/.env'
+            - 'TMPENV:/code/scripts/.env'
+            - 'TMPENV:/code/diarc/.env'
             - '/etc/timezone:/etc/timezone:ro'
             - '/etc/localtime:/etc/localtime:ro'
             - './docker_scripts/start_code.sh:/code/scripts/start_code.sh'

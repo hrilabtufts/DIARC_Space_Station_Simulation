@@ -1,6 +1,6 @@
 # DIARC Unity Space Station Simulation
 
-This repository contains the DIARC space station simulation comprised of two executables and a Python script for launching the docker containers and services required to simulate a PR2 running DIARC.
+This repository contains the DIARC space station simulation comprised of two release executables and a Python script for launching the docker containers and services required to simulate a PR2 running DIARC.
 
 ## Quickstart
 
@@ -275,8 +275,10 @@ optional arguments:
 
 ```
 
-Run DIARC in debug mode and use a development repository which can be edited locally.
+Run DIARC in dev mode and use a repository which can be edited locally.
 This will rebuild the `unity` component in `../diarc` and launch DIARC with debug port `5005` expecting a connection from IntelliJ to start DIARC.
+When launching the docker containers the local repo will be volume mapped into the filesystem so your changes will be reflected immediately.
+This can be used for rapid development.
 
 ```bash
 python launch.py dev ../diarc
@@ -396,8 +398,8 @@ The following is the default `server_settings.json` file with all required value
 }
 ```
 
-* **created** - String of date showing when the configuration was made 
-* **name** - Name of the study, to be included in all data files
+* **created** - String of date showing when the configuration was made.
+* **name** - Name of the study, to be included in all data files.
 * **type** - Type of configuration. Must be `server` or program will exit. Used to prevent using server configuration on the server.
 * **room** - Name of room server is located. Used to track origin of data in multi subject studies.
 * **maxPlayers** - Integer defining the maxiumum number of players allowed to connect to the server at once. Default is `1`.
@@ -409,6 +411,7 @@ The following is the default `server_settings.json` file with all required value
 * **networkConnectionUrl** - IP address of the machine the server is running on for it to bind to. Defaults to `127.0.0.1` but should be a remotely-accessible address if using multiple machines.
 * **networkConnectionPort** - Integer defining the port to run the server on. Defaults to `8868`.
 * **useLSL** - Boolean defining whether to public clock data to LSL. Defaults to `false`.
+* **perRobotCommunication** - When set to true, all transcribed speech events from subjects will be sent to all robots. Defaults to `false`.
 
 <a name="client-config"></a>
 ### Configuring Unity Space Station Client
@@ -431,12 +434,15 @@ The following is the default `client_settings.json` file with all required value
   "networkConnectionPort" : 8868,
   "calibrateEyeTracker" :  false,
   "useLSL" : false,
-  "allowCrosstalk" : false
+  "allowCrosstalk" : false,
+  "perRobotCommunication" : false,
+  "preventCommunicationOutsideTrials" : false,
+  "obsUrl" : "ws://127.0.0.1:4455"
 }
 ```
 
-* **created** - String of date showing when the configuration was made 
-* **name** - Name of the study, to be included in all data files
+* **created** - String of date showing when the configuration was made.
+* **name** - Name of the study, to be included in all data files.
 * **type** - Type of configuration. Must be `client` or program will exit. Used to prevent using server configuration on the client.
 * **room** - Name of room client is located. Used to track origin of data in multi subject studies.
 * **movementType** - Type of movement controls on the Vive Pro Eye. Either `jump` or `linear`.
@@ -450,3 +456,8 @@ The following is the default `client_settings.json` file with all required value
 * **calibrateEyeTracker** - Boolean defining whether to run the eye tracker calibration script on startup. Defaults to `false`.
 * **useLSL** - Boolean defining whether to public clock data to LSL. Defaults to `false`.
 * **allowCrosstalk** - Boolean defining whether to allow robot and space station agents to talk over one another with generated speech. Defaults to `false`.
+* **perRobotCommunication** - When set to true, all transcribed speech events from subjects will be sent to all robots. Defaults to `false`.
+* **voiceChatDistortion** - Distort speech in the voice chat between subjects connected via different Unity clients. Defaults to `false`.
+* **preventCommunicationOutsideTrials** - Deafens subject voice chat when subjects are not in an active trial. Defaults to `false`.
+* **obsUrl** - (Optional) Websocket URL to connect to local OBS application for video recording. Typically: `ws://127.0.0.1:4455`.
+    

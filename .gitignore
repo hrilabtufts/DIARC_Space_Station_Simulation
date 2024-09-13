@@ -3,3 +3,4 @@ logs
 cache
 docker-compose.yaml
 .env*
+workload_analysis

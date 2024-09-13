@@ -14,3 +14,11 @@ else
 fi
 
 docker build ${ARG} --progress=plain -t hrilabtufts/unity_space_station -f Dockerfile .
+
+if [ ! -d ./workload_analysis ]; then
+    git clone https://github.com/hrilabtufts/workload_analysis.git
+fi
+
+cd workload_analysis
+
+docker build ${ARG} --progress=plain -t hrilabtufts/workload_analysis -f Dockerfile .

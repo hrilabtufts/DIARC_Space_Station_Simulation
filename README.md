@@ -437,7 +437,8 @@ The following is the default `client_settings.json` file with all required value
   "allowCrosstalk" : false,
   "perRobotCommunication" : false,
   "preventCommunicationOutsideTrials" : false,
-  "obsUrl" : "ws://127.0.0.1:4455"
+  "obsUrl" : "ws://127.0.0.1:4455",
+  "workloadUrl" : "http://127.0.0.1:9995"
 }
 ```
 

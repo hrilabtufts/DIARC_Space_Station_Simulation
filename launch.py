@@ -98,6 +98,8 @@ class DIARCSpaceStation:
 	unity_server_output = 'Space_Station_SMM_Server_Data/StreamingAssets/Output'
 	unity_server_config = 'Space_Station_SMM_Server_Data/StreamingAssets/server_settings.json'
 
+	workload_url = 'https://github.com/hrilabtufts/workload_analysis.git'
+
 	required_keys = ['BIN' , 'UNITY_IP', 'DIARC_CONFIG', 'LLM_URL', 'LLM_PORT', 'SMM', 'NETWORK_PREFIX', 'ROBOTS', 'CLIENTS']
 	
 	ros_port = 9090
@@ -234,6 +236,29 @@ class DIARCSpaceStation:
 
 		for line in proc.stdout :
 			print(f'[BUILD] {line}')
+
+		self._buildWorkload()
+
+	def _buildWorkload(self) :
+		if not os.path.isdir('./workload_analysis') :
+			cmd = [ 'git', 'clone', self.workload_url ]
+			print(f'[BUILD] Cloning {self.workload_url}...')
+			proc = subprocess.run(cmd, stdout=subprocess.PIPE)
+			for line in proc.stdout :
+				print(f'[BUILD] {line}')
+
+		cmd = ['docker', 'build']
+
+		if not self._args.cache :
+			cmd += ['--no-cache']
+
+		cmd += ['--progress=plain', '-t', 'hrilabtufts/workload_analysis', '-f', 'Dockerfile', '.']
+
+		proc = subprocess.run(cmd, stdout=subprocess.PIPE, cwd='./workload_analysis')
+
+		for line in proc.stdout :
+			print(f'[BUILD] {line}')
+
 
 	def _kill(self) :
 		'''Immediately kill the DIARC/ROS docker container with any and all sideeffects of doing that'''

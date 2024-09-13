@@ -269,7 +269,6 @@ class DIARCSpaceStation:
 		for line in proc.stdout :
 			print(f'[BUILD] {line}')
 
-
 	def _kill(self) :
 		'''Immediately kill the DIARC/ROS docker container with any and all sideeffects of doing that'''
 		print('kill()')
@@ -819,6 +818,7 @@ class DIARCSpaceStation:
 			self._log('LabRecorder streams all closed')
 
 	def _workloadServices (self, network) :
+		'''Genreate all workload services entries'''
 		output = []
 		ip = network + 0
 		port = self.workload_port
@@ -833,6 +833,7 @@ class DIARCSpaceStation:
 		return workload_services
 
 	def _workloadService (self, count, workload, ip, port) :
+		'''Generate a workload service entry'''
 		workload_service = self._readLines(self.workload_tmpl)
 		workload_service_map = {
 			'WORKLOADCOUNT' : str(count),

@@ -49,6 +49,7 @@ dev.add_argument('-t', '--trial', default=1, type=int, help='Start at a differen
 dev.add_argument('-C', '--config', default=None, type=str, help='Class path of the DIARC configuration to use when launching a robot')
 dev.add_argument('-D', '--configSpoke', default=None, type=str, help='Class path of the DIARC configuration to use when launching a robot as a spoke')
 dev.add_argument('-e', '--extraArgs', default=None, type=str, help='Extra arguments supplied to DIARC configuration on launch')
+dev.add_argument('-w', '--workload', default=None, type=str, help='Workload threshold. Must match number of clients')
 dev.add_argument('diarc', type=str, nargs='+')
 
 run = subparsers.add_parser('run', help='Run the simulation server(s) in production mode')
@@ -99,11 +100,13 @@ class DIARCSpaceStation:
 	unity_server_config = 'Space_Station_SMM_Server_Data/StreamingAssets/server_settings.json'
 
 	workload_url = 'https://github.com/hrilabtufts/workload_analysis.git'
+	workload_tmpl = './config/docker/docker-compose-workload.yaml.tmpl'
 
 	required_keys = ['BIN' , 'UNITY_IP', 'DIARC_CONFIG', 'LLM_URL', 'LLM_PORT', 'SMM', 'NETWORK_PREFIX', 'ROBOTS', 'CLIENTS']
 	
 	ros_port = 9090
 	unity_port = 1755
+	workload_port = 9995
 	network_start = 4
 	robots = 0
 	clients = 0
@@ -246,6 +249,12 @@ class DIARCSpaceStation:
 			proc = subprocess.run(cmd, stdout=subprocess.PIPE)
 			for line in proc.stdout :
 				print(f'[BUILD] {line}')
+		else :
+			cmd = ['git', 'pull']
+			print(f'[BUILD] Updating {self.workload_url}...')
+			proc = subprocess.run(cmd, stdout=subprocess.PIPE, cwd='./workload_analysis')
+			for line in proc.stdout :
+				print(f'[BUILD] {line}')
 
 		cmd = ['docker', 'build']
 
@@ -345,6 +354,14 @@ class DIARCSpaceStation:
 
 		additional_services = self._additionalServices()
 		docker_compose += additional_services
+
+		if self._args.workload is not None and len(self._args.workload.split(',')) > 0 :
+			workload_count = len(self._args.workload.split(','))
+			if workload_count != self.clients :
+				self._log(f'Number of workload values ({workload_count}) does not match number of expected clients ({self.clients})')
+			workload_services = self._workloadServices(network)
+			docker_compose += workload_services
+			network += workload_count
 
 		tmp_env = self._tmpEnv()
 
@@ -799,6 +816,33 @@ class DIARCSpaceStation:
 		if not global_dict['lab_recorder_closed'] and False not in self.lsl_stream_closed and 'Closing the file' in line :
 			global_dict['lab_recorder_closed'] = True
 			self._log('LabRecorder streams all closed')
+
+	def _workloadServices (self, network) :
+		output = []
+		ip = network + 0
+		port = self.workload_port
+		count = 1
+		workloads = [float(i) for i in self._args.workload.split(',')]
+		workload_services = []
+		for workload in workloads :
+			workload_services += self._workloadService(count, workload, ip, port)
+			ip += 1
+			port += 1
+			count += 1
+		return workload_services
+
+	def _workloadService (self, count, workload, ip, port) :
+		workload_service = self._readLines(self.workload_tmpl)
+		workload_service_map = {
+			'WORKLOADCOUNT' : str(count),
+			'WORKLOADTHRESH' : str(workload),
+			'WORKLOADIP' : str(ip),
+			'WORKLOADPORT' : str(port),
+			'NETWORK_PREFIX' : self._env['NETWORK_PREFIX']
+		}
+		return self._replaceLines(workload_service, workload_service_map)
+
+
 
 def waitForEnter () :
 	'''Pause the process to wait for user confirmation'''

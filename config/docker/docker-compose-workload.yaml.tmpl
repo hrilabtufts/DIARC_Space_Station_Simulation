@@ -1,0 +1,12 @@
+    workload_analysis_WORKLOADCOUNT:
+        image: hrilabtufts/workload_analysis:latest
+        ports:
+            - WORKLOADPORT:9995
+        volumes:
+            - ./workload_analysis/server.py:/app/server.py
+            - ./workload_analysis/PCPS.py:/app/PCPS.py
+        restart: always
+        command: python server.py -t WORKLOADTHRESH
+        networks:
+            diarc_space_station:
+                ipv4_address: NETWORK_PREFIX.0.WORKLOADIP

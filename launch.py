@@ -65,6 +65,7 @@ run.add_argument('-t', '--trial', default=1, type=int, help='Start at a differen
 run.add_argument('-C', '--config', default=None, type=str, help='Class path of the DIARC configuration to use when launching a robot')
 run.add_argument('-D', '--configSpoke', default=None, type=str, help='Class path of the DIARC configuration to use when launching a robot as a spoke')
 run.add_argument('-e', '--extraArgs', default=None, type=str, help='Extra arguments supplied to DIARC configuration on launch')
+run.add_argument('-w', '--workload', default=None, type=str, help='Workload threshold. Must match number of clients')
 
 stop = subparsers.add_parser('stop', help='Gracefully stop all docker containers')
 kill = subparsers.add_parser('kill', help='Kill all docker containers')

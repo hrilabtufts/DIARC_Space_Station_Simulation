@@ -205,7 +205,8 @@ optional arguments:
                         Class path of the DIARC configuration to use when launching a robot as a spoke
   -e EXTRAARGS, --extraArgs EXTRAARGS
                         Extra arguments supplied to DIARC configuration on launch
-
+  -w WORKLOAD, --workload WORKLOAD
+                        Workload threshold. Must match number of clients
 ```
 
 Run DIARC and ROS on localhost.
@@ -272,7 +273,8 @@ optional arguments:
                         Class path of the DIARC configuration to use when launching a robot as a spoke
   -e EXTRAARGS, --extraArgs EXTRAARGS
                         Extra arguments supplied to DIARC configuration on launch
-
+  -w WORKLOAD, --workload WORKLOAD
+                        Workload threshold. Must match number of clients
 ```
 
 Run DIARC in dev mode and use a repository which can be edited locally.

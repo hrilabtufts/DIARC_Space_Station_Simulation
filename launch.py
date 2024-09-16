@@ -359,6 +359,7 @@ class DIARCSpaceStation:
 			workload_count = len(self._args.workload.split(','))
 			if workload_count != self.clients :
 				self._log(f'Number of workload values ({workload_count}) does not match number of expected clients ({self.clients})')
+				exit(1)
 			workload_services = self._workloadServices(network)
 			docker_compose += workload_services
 			network += workload_count
@@ -843,8 +844,6 @@ class DIARCSpaceStation:
 			'NETWORK_PREFIX' : self._env['NETWORK_PREFIX']
 		}
 		return self._replaceLines(workload_service, workload_service_map)
-
-
 
 def waitForEnter () :
 	'''Pause the process to wait for user confirmation'''

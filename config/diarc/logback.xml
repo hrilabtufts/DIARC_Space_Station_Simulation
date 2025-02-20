@@ -29,10 +29,6 @@
   <logger name="edu.tufts.hrilab.movebase.MoveBaseComponent" level="DEBUG"/>
   <logger name="edu.tufts.hrilab.movebase.MoveBase" level="DEBUG"/>
   <logger name="edu.tufts.hrilab.slug.parsing.hybrid.HybridParserComponent" level="DEBUG"/>
-  <logger name="edu.tufts.hrilab.slug.parsing.llm.LLMParserComponent" level="DEBUG"/>
-  <logger name="edu.tufts.hrilab.slug.parsing.cache.CachedParserComponent" level="DEBUG"/>
-  <logger name="edu.tufts.hrilab.slug.parsing.cache.CacheDatabase" level="DEBUG"/>
-  <logger name="edu.tufts.hrilab.slug.nlg.NLG" level="DEBUG"/>
-  <logger name="edu.tufts.hrilab.slug.nlg.SimpleNLGComponent" level="DEBUG"/>
+  <logger name="edu.tufts.hrilab.slug.nlg.hybrid.HybridNLGComponent" level="DEBUG"/>
   <logger name="edu.tufts.hrilab.unity.space_station.nlg.UnitySpaceStationNLGComponent" level="DEBUG"/>
 </configuration>
